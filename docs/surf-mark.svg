@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">surf</title>
+  <desc id="desc">surf wordmark with an ember-colored wave symbol.</desc>
+  <rect width="1200" height="300" rx="24" fill="#F4F0E8"/>
+  <g transform="translate(72 66)">
+    <rect width="168" height="168" rx="12" fill="#242321"/>
+    <path d="M30 104c18-26 36-26 54 0s36 26 54 0" fill="none" stroke="#F4F0E8" stroke-width="12" stroke-linecap="square"/>
+    <path d="M30 140h108" fill="none" stroke="#625E57" stroke-width="8" stroke-linecap="square"/>
+    <rect x="30" y="42" width="28" height="28" fill="#D85A2A"/>
+  </g>
+  <text x="286" y="138" fill="#242321" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="76" font-weight="700" letter-spacing="-3">SURF</text>
+  <text x="290" y="195" fill="#625E57" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="28" letter-spacing="1">OPEN-DATA SURF INTELLIGENCE</text>
+  <path d="M290 220h730" stroke="#D85A2A" stroke-width="5"/>
+</svg>

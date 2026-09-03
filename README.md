@@ -1,8 +1,28 @@
-# surf
+<p align="center">
+  <img src="docs/surf-mark.svg" alt="surf — open-data surf intelligence" width="900">
+</p>
+
+<p align="center"><strong>One spot, one window, and what would make it wrong.</strong></p>
+
+<p align="center">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-242321">
+  <img alt="Tests: offline suite" src="https://img.shields.io/badge/tests-offline%20suite-242321">
+  <img alt="Data: open, no key" src="https://img.shields.io/badge/data-open%2C%20no%20key-D85A2A">
+</p>
 
 Picks one surf spot and one time window from open forecast, buoy, tide and
 bathymetry data, then tells you what would make it wrong. No account, no API
 key, no vendor.
+
+## Why surf
+
+Surf forecasts hand you a rating and hide the reasoning. This one refuses to.
+
+- Four components print side by side and are never fused into a single score.
+- Every value carries its source, and a degraded source names what it dropped.
+- Each call states what would make it wrong before you paddle out.
+- Geometry is measured and cached with a provenance flag, or reported as absent.
+- No account, no API key, no vendor lock.
 
 ## Install
 
