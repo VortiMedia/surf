@@ -46,7 +46,7 @@ caveats
 
 Spots live in [`data/spots.tsv`](data/spots.tsv), one row each. Add your own.
 
-## Claude Code skill
+## Agent skill
 
 ```sh
 cp -r skill ~/.claude/skills/surf-intelligence
