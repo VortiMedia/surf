@@ -1,0 +1,46 @@
+# My surf log. Rating 5=ideal, 4=fun, 3=ok, 2=poor, 1=unsurfable.
+# The rating is how the session was, not how big it was: a big swell a spot
+# cannot hold is not a good day. `?` marks a date or time I am not sure of.
+# Columns: date TAB spot TAB time TAB rating TAB notes. Add rows any time.
+date	spot	time	rating	notes
+2025-09-30	Spring Lake NJ	08:00?	2	walled out, closed out, messy; better in the morning
+2025-08-10	Spring Lake NJ	09:00	2	super small, barely rippable on a twin fin, one turn
+2025-08-05?	Bay Head NJ	--	3	almost head high on standout sets, mostly chest, inconsistent, fast and racy
+2025-04-12	Lido Beach Town Park NY	08:00	3	not an ideal Lido day but surfable; weak tubes
+2025-03-12	Llandudno, Cape Town ZA	18:00	5	PERFECT. wish every day was like this. ideal conditions, all I want to surf
+2025-02-24?	Llandudno, Cape Town ZA	--	4	small, fun, playful, good old time
+2025-02-15	Llandudno, Cape Town ZA	--	4	really fun, awesome waves
+2025-02-05	Kommetjie, Cape Town ZA	17:00	3	not steep/punchy, hard to chip in; spot could NOT hold the swell, needed a gun. NOT too big overall — Sunsets was going off same day
+2025-02-05	Sandy Bay, Cape Town ZA	14:22	5	sick punchy tube
+2025-02-24?	Lido Beach NY	--	3	rough, logable but clean  (AMBIGUOUS: said "February 2025" and "Feb 24 2024" — may be one session or two)
+2024-12-12	Spring Lake NJ	10:00?	1	hungover, snapped leash, over the falls; slabby, sucking up, walled, closed out
+2024-10-26	Meio, Fernando de Noronha BR	16:02	3	small but fun looking; did not surf
+2024-09-17	Lido Beach NY	08:00?	2	thought it'd be bigger and wasn't; super crowded
+2024-09-16?	Lido Beach NY	08:51	3	sick looking but walled out, short period
+2024-07-18	Lido Beach NY	09:00	4	copped a barrel; got worse after, 08:00 was best
+2024-04-13	Belmar NJ?	--	5	quad fin, got barreled, backflip out
+2024-04-04	Belmar NJ	06:48	5	spitting tubes, what dreams are made of
+2024-03-24	Lido Beach Town Park NY	10:30	4	rideable tubes
+2024-03-24	Lido Beach NY	07:00	5	some of the best Lido I've seen; fun closeouts, dreamiest
+2024-02-24	Lido Beach NY	--	3	rough, logable but clean
+2024-01-16	Playa Langosta CR	--	3	offshore, kind of small (a sunset session that trip was pumping — best day ever; exact date unconfirmed)
+2024-01-09?	Carcavelos, Lisbon PT	14:47	4	looked so awesome; did not surf
+2023-12-11?	Beliche, Sagres PT	16:36	5	pumping, so much fun
+2022-07-29	South Shore Beach, Little Compton RI	early	2	grovel
+2022-09-10	Point Judith RI	--	2	small
+2022-09-23	Camp Hero, Montauk NY	--	3	
+2022-06-15?	Little Compton RI	sunset	3	small, fun, grovel (also 6/16 sunrise)
+2024-02-29	Point Judith RI	--	4	fun  (Feb 29 = leap year, so 2024 confirmed)
+????-02-22	Point Judith RI	08:48	4	fun
+????-05-21	Point Judith RI	--	4	more fun
+????-08-17	Camp Cronin, Point Judith RI	--	5	surfed the big point, felt like Waimea; then shortboard in front of the rocks, novelty, so much fun
+????-01-04	unknown	17:00	5	super fun and perfect  (NEEDS SPOT + YEAR — logged as "jan 4 17")
+????-09-14	Lido Beach NY	10:00	4	awesome  (NEEDS YEAR)
+????-09-21	Lido Beach NY	--	3	pretty chilled  (NEEDS YEAR)
+????-03-03	Lido Beach NY?	--	3	SUPER WEIRD — longshore current running EAST; normally pulls WEST here  (NEEDS YEAR + SPOT CONFIRM)
+????-06-24	Spring Lake NJ	07:29	4	pretty fun  (NEEDS YEAR)
+????-07-07	Manasquan NJ	--	1	pretty flat  (NEEDS YEAR)
+????-07-11	Manasquan NJ	04:50	3	surfed, dawn patrol  (NEEDS YEAR)
+2024-12-05	unknown	--	5	have video of a nice tube  (NEEDS SPOT)
+2024-08-19	unknown	--	4	looked super sick and fun  (NEEDS SPOT)
+????-06-19	Stonewall Beach / Aquinnah, Martha's Vineyard MA	07:56	3	LOWER BOUND — "about as small as we'd want to go". Defines minimum rideable size for MV  (NEEDS YEAR)

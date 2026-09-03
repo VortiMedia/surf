@@ -1,0 +1,23 @@
+[project]
+name = "surf"
+version = "0.1.0"
+description = "Forecast the ocean from open physical data. A call, not a table."
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+surf = "surf.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["surf*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: hits a live public API; deselect with -m 'not network'"]
