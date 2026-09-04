@@ -54,6 +54,7 @@ from .sessions import (
 from .sources import Archive, Http, Reading, Window
 from .spots import Derived, Spot, SpotBook, save_spots
 from .tides import TideAdapter
+from .terrain import TerrainScan, TerrainSource, load_terrain_cache, save_terrain_cache, scan_grid, terrain_cache_path
 from .waves import Forecast, TidePoint, WaveField, m_to_ft, mps_to_kt
 
 PROGRAM = "surf"
@@ -192,6 +193,7 @@ class Console:
     book: SpotBook | None = None
     archive: Archive | None = None
     climate_source: ClimateSource | None = None
+    terrain_source: TerrainSource | None = None
     clock: Callable[[], datetime] = _now
     surfline: bool | None = None
     # Commands may leave their source receipt here for another transport (MCP,
@@ -685,6 +687,66 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
     return EXIT_FAILED if result.status == "failed" else EXIT_OK
 
 
+def _render_terrain(zone: str, source: str, status: str, fetched_at: datetime, scans: tuple[TerrainScan, ...], console: Console) -> None:
+    console.say(f"TERRAIN  {zone}")
+    console.say(f"  source         {source}:{status}")
+    console.say(f"  fetched_at     {fetched_at.isoformat()}")
+    for scan in scans:
+        console.say()
+        console.say(f"  CELL {scan.spot_id}  {scan.status}")
+        console.say(f"    resolution     {scan.resolution_m or 'unknown'} m")
+        console.say(f"    vertical datum {scan.vertical_datum}")
+        if scan.note:
+            console.say(f"    note           {scan.note}")
+        for dropped in scan.dropped:
+            console.say(f"    dropped        {dropped}")
+        if not scan.candidates:
+            console.say("    candidates     none")
+        for candidate in scan.candidates:
+            console.say(
+                f"    terrain object {candidate.object_type} at "
+                f"{candidate.lat:.5f}, {candidate.lon:.5f}; "
+                f"{candidate.cells} independent cells, relief {candidate.relief_m:.1f} m"
+            )
+            console.say(f"      label: {candidate.label}")
+            console.say(f"      resolution perturbation stable: {candidate.resolution_survives}")
+            console.say(f"      smoothing stable: {candidate.smoothing_survives}")
+            console.say(f"      {candidate.promotion}")
+
+
+def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
+    """Scan feature-resolving bathymetry and propose terrain objects."""
+    book = console.spots()
+    spots = book.in_zone(args.zone)
+    if not spots:
+        console.warn(f"no spots in zone {args.zone!r}")
+        return EXIT_FAILED
+    path = terrain_cache_path(args.zone)
+    if path.exists() and not args.refresh:
+        zone, status, fetched_at, scans = load_terrain_cache(path, book)
+        _render_terrain(zone, "ncei", status, fetched_at, scans, console)
+        return EXIT_OK
+    source = console.terrain_source or NceiBathymetry(Http())
+    scans: list[TerrainScan] = []
+    status = "ok"
+    fetched_at = console.clock()
+    for spot in spots:
+        reading = source.grid(spot, radius_m=300.0, spacing_m=50.0, rows=7, cols=7)
+        fetched_at = max(fetched_at, reading.fetched_at)
+        if reading.value is None:
+            status = "failed" if reading.status in ("failed", "skipped") else "degraded"
+            scans.append(TerrainScan(spot.id, reading.source, reading.status, reading.fetched_at, None, "unknown", note=reading.note, dropped=reading.dropped))
+            continue
+        if reading.status != "ok":
+            status = "degraded"
+        scan = scan_grid(spot, reading.value)
+        scans.append(TerrainScan(spot.id, reading.source, reading.status if reading.status != "ok" else scan.status, reading.fetched_at, scan.resolution_m, scan.vertical_datum, scan.candidates, scan.note, reading.dropped))
+    scans_tuple = tuple(scans)
+    save_terrain_cache(path, args.zone, scans_tuple, source.name, status, fetched_at)
+    _render_terrain(args.zone, source.name, status, fetched_at, scans_tuple, console)
+    return EXIT_FAILED if status == "failed" else EXIT_OK
+
+
 def _check_date(raw: str) -> str:
     """Accept exactly what the loader accepts: `2025-09-30`, `2025-09-30?` and
     `????-03-03`. Rejected here rather than written, because `parse_date` answers
@@ -878,6 +940,13 @@ def build_parser() -> argparse.ArgumentParser:
     climate.add_argument("--end", required=True, help="last date, YYYY-MM-DD")
     climate.add_argument("--refresh", action="store_true", help="rebuild the derived climate cache")
     climate.set_defaults(run=cmd_climate)
+
+    terrain = sub.add_parser(
+        "terrain", help="scan zone bathymetry for stable terrain-object candidates"
+    )
+    terrain.add_argument("--zone", required=True, help="exact zone identity from data/spots.tsv")
+    terrain.add_argument("--refresh", action="store_true", help="rebuild the derived terrain cache")
+    terrain.set_defaults(run=cmd_terrain)
 
     calibrate_cmd = sub.add_parser("calibrate", help="check the model against the session log")
     calibrate_cmd.add_argument(

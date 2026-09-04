@@ -31,6 +31,17 @@ class Sample:
     resolution_m: float | None
 
 
+@dataclass(frozen=True)
+class BathymetryGrid:
+    """A small source grid; elevations stay un-interpolated."""
+
+    samples: tuple[Sample, ...]
+    rows: int
+    cols: int
+    resolution_m: float | None
+    vertical_datum: str
+
+
 def destination(lat: float, lon: float, bearing_deg: float, distance_m: float) -> tuple[float, float]:
     """Point `distance_m` from (lat, lon) along `bearing_deg` true."""
     # Flat-earth on a sphere: over the ~3 km profiles here the error against a
@@ -172,6 +183,64 @@ class NceiBathymetry:
         if res:
             note += f", DEM cell ~{res:.0f} m"
         return Reading(samples, self.name, status, now(), note=note, dropped=dropped)
+
+    def grid(
+        self,
+        spot: Spot,
+        *,
+        radius_m: float = 300.0,
+        spacing_m: float = 50.0,
+        rows: int = 7,
+        cols: int = 7,
+    ) -> Reading[BathymetryGrid]:
+        """Sample a local grid in source-cell order for terrain screening.
+
+        Missing cells remain missing. No interpolation or smoothing is applied
+        here; those are explicit perturbations in the terrain scanner.
+        """
+        if rows < 3 or cols < 3:
+            raise ValueError("grid needs at least 3 rows and 3 columns")
+        if rows * cols > MAX_POINTS:
+            raise ValueError(f"grid has {rows * cols} points; NCEI limit is {MAX_POINTS}")
+        y0 = -(rows - 1) * spacing_m / 2.0
+        x0 = -(cols - 1) * spacing_m / 2.0
+        points: list[tuple[float, float]] = []
+        for row in range(rows):
+            north = y0 + row * spacing_m
+            for col in range(cols):
+                east = x0 + col * spacing_m
+                lat, lon = destination(spot.lat, spot.lon, 0.0, north)
+                lat, lon = destination(lat, lon, 90.0, east)
+                points.append((lat, lon))
+        started = now()
+        try:
+            values = self._get_samples(points)
+        except SourceDown as exc:
+            return Reading(None, self.name, "skipped", started, note=str(exc))
+        except Exception as exc:
+            return Reading(None, self.name, "failed", started, note=explain(exc))
+        samples = tuple(
+            Sample(
+                distance_m=row * spacing_m,
+                lat=points[i][0],
+                lon=points[i][1],
+                elevation_m=values[i][0] if i < len(values) else None,
+                resolution_m=values[i][1] if i < len(values) else None,
+            )
+            for i, row in ((i, i // cols) for i in range(rows * cols))
+        )
+        resolution = next((s.resolution_m for s in samples if s.resolution_m), None)
+        missing = sum(s.elevation_m is None for s in samples)
+        status = "degraded" if missing else "ok"
+        dropped = (f"{missing} NoData grid cells",) if missing else ()
+        return Reading(
+            BathymetryGrid(samples, rows, cols, resolution, "unknown (NCEI does not report vertical datum)"),
+            self.name,
+            status,
+            started,
+            note=f"{rows}x{cols} grid, {spacing_m:.0f} m spacing",
+            dropped=dropped,
+        )
 
     def _get_samples(self, points: list[tuple[float, float]]) -> list[tuple[float | None, float | None]]:
         """(elevation_m, resolution_m) per point, in request order."""

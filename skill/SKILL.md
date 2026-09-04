@@ -36,6 +36,7 @@ a rating back.
 | `surf call [--region R] [--days N]` | The product. One recommendation across the region and window. |
 | `surf spot <name>` | One spot in depth: components, geometry, provenance, what is missing. |
 | `surf climate --zone Z --start YYYY-MM-DD --end YYYY-MM-DD` | Measure historical swell/wind overlap per zone cell; uses the derived cache in `data/climate/`. Add `--refresh` to rebuild it. |
+| `surf terrain --zone Z` | Scan feature-resolving bathymetry for stable terrain-object candidates; uses `data/climate/` and never promotes a candidate to a surf spot automatically. Add `--refresh` to rebuild it. |
 | `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, and print each scored row's regime with the component results. |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
