@@ -260,6 +260,28 @@ class Console:
         return ForecastService(self.ports(), cache=GeometryCache(), clock=self.clock)
 
 
+@dataclass
+class _RecordingArchive:
+    """Pass archive receipts to the shared transport without changing recovery."""
+
+    archive: Archive
+    console: Console
+
+    @property
+    def name(self) -> str:
+        return self.archive.name
+
+    def preflight(self) -> Reading[bool]:
+        reading = self.archive.preflight()
+        self.console.record(reading)
+        return reading
+
+    def conditions(self, spot: Spot, on: date, hour: int) -> Reading[WaveField]:
+        reading = self.archive.conditions(spot, on, hour)
+        self.console.record(reading)
+        return reading
+
+
 def _select(book: SpotBook, region: str | None, names: Sequence[str]) -> tuple[list[Spot], list[str]]:
     """Spots to scan, plus the names that resolved to nothing — returned rather
     than skipped, so a typo cannot silently shrink the scan.
@@ -545,7 +567,10 @@ def cmd_calibrate(args: argparse.Namespace, console: Console) -> int:
     """
     archive: Archive | None = None
     if args.online:
-        archive = console.archive if console.archive is not None else OpenMeteoArchive(Http())
+        archive = _RecordingArchive(
+            console.archive if console.archive is not None else OpenMeteoArchive(Http()),
+            console,
+        )
 
     report = calibrate(
         archive=archive,
@@ -589,6 +614,8 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
     archive: Archive | None = console.archive
     if archive is None and args.online:
         archive = OpenMeteoArchive(Http())
+    if archive is not None:
+        archive = _RecordingArchive(archive, console)
     years = None
     if args.years:
         try:
@@ -1044,7 +1071,7 @@ def cmd_session(args: argparse.Namespace, console: Console) -> int:
     cache = ConditionCache()
     added = sessions[-1]
     if added.rating is not None and added.rating >= 4 and added.usable_for_check:
-        archive = console.archive or OpenMeteoArchive(Http())
+        archive = _RecordingArchive(console.archive or OpenMeteoArchive(Http()), console)
         result = recover((added,), archive=archive, book=book, cache=cache)
         if result and result[0].field is None:
             console.warn(f"warning: REACH did not ratchet: {result[0].note}")

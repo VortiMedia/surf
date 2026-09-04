@@ -107,6 +107,7 @@ def test_session_add_fetches_a_qualifying_row_and_ratchets_without_a_size_field(
     assert code == cli.EXIT_OK
     assert "REACH mark" in out.getvalue()
     assert "did not ratchet" not in err.getvalue()
+    assert console.readings and console.readings[0].source == "reach-fixture"
 
 
 def test_call_drops_hours_above_known_reach_ceiling_without_ordering_reach():
