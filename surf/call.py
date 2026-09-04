@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
@@ -34,6 +34,7 @@ class Candidate:
     tide_note: str = ""
     access_note: str = ""
     model_only: bool = False
+    band_floor: str = ""
 
 
 @dataclass(frozen=True)
@@ -391,7 +392,9 @@ def horizon_note(
     return f"nothing on the charts for days {sharp_days + 1}-{heads_up_days}"
 
 
-def _candidate(hour: ScoredHour, outlook: SpotOutlook) -> Candidate:
+def _candidate(
+    hour: ScoredHour, outlook: SpotOutlook, band_floors: Mapping[str, str]
+) -> Candidate:
     return Candidate(
         spot_id=outlook.spot.id,
         spot_name=outlook.spot.name,
@@ -402,6 +405,7 @@ def _candidate(hour: ScoredHour, outlook: SpotOutlook) -> Candidate:
         tide_note=tide_note(outlook.tide, hour.at, outlook.spot.timezone),
         access_note=outlook.spot.access,
         model_only=hour.model_only,
+        band_floor=band_floors.get(outlook.spot.id, ""),
     )
 
 
@@ -415,6 +419,7 @@ def make_call(
     neighbour: str = "",
     readings: Sequence[Reading] = (),
     evidence: Sequence[EvidenceRecord] = (),
+    band_floors: Mapping[str, str] | None = None,
 ) -> Reading[Call]:
     """Commit to a spot, a day and a time — or say plainly that there is none.
 
@@ -422,6 +427,7 @@ def make_call(
     every one that is not `ok` becomes a caveat.
     """
     fetched_at = _utc(now) if now is not None else datetime.now(timezone.utc)
+    band_floors = band_floors or {}
     start = fetched_at
     sharp_end = _end_of_day(fetched_at + timedelta(days=sharp_days))
 
@@ -468,11 +474,12 @@ def make_call(
     caveats.extend(outlook.notes)
 
     runners = tuple(
-        _candidate(hour, by_spot[hour.spot.id][0]) for hour in ranked[1 : 1 + MAX_RUNNERS_UP]
+        _candidate(hour, by_spot[hour.spot.id][0], band_floors)
+        for hour in ranked[1 : 1 + MAX_RUNNERS_UP]
     )
 
     call = Call(
-        winner=_candidate(peak, outlook),
+        winner=_candidate(peak, outlook, band_floors),
         window=window_text(run),
         signals=signals_for(peak, outlook),
         falsifiers=falsifiers_for(peak, outlook),

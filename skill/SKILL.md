@@ -42,6 +42,14 @@ a rating back.
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
+## Band floors
+
+`BAND` is the minimum nearshore Hs worth the trip for that setup type, never a
+target or an upper cap. A `measurement` is the lowest cached session rated 4 or
+5 and includes its sample count. Sparse point and reef evidence stays a
+`convention` based on depth-limited breaking and the shelf criterion. A setup
+type with neither enough sessions nor a stated convention prints no band.
+
 ## MCP surface
 
 Run `surf-mcp` as a stdio MCP server. Its `tools/list` names map directly to

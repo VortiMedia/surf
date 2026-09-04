@@ -12,6 +12,7 @@ from typing import Any, Callable, TextIO
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .bathymetry import NceiBathymetry
+from .bands import bands_from_log
 from .calibrate import ConditionCache, calibrate
 from .climate import ClimateResult, ClimateSource, OpenMeteoClimate, build_result, cache_path, load_cache, save_cache
 from .call import (
@@ -286,10 +287,11 @@ def _unique(lines: Sequence[str]) -> list[str]:
 
 
 def _candidate_line(candidate: Candidate) -> str:
-    return (
+    line = (
         f"{candidate.spot_name}  {_when(candidate)}  "
         f"{_components(candidate.components)}"
     )
+    return line + (f"  BAND {candidate.band_floor}" if candidate.band_floor else "  BAND none")
 
 
 def render_call(call: Call, console: Console) -> None:
@@ -297,6 +299,7 @@ def render_call(call: Call, console: Console) -> None:
     winner = call.winner
     console.say(f"CALL  {winner.spot_name.upper()}  {call.window or f'{winner.at:%a %d %b %H:%M} UTC'}")
     console.say(f"  {_components(winner.components)}")
+    console.say(f"  BAND {winner.band_floor or 'none for this setup type'}")
     if winner.tide_note:
         console.say(f"  tide: {winner.tide_note}")
     if winner.access_note:
@@ -372,6 +375,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
 
     outlooks, readings, _ = _fetch(console, spots, window)
     console.record(*readings)
+    bands = bands_from_log(book)
     reading = make_call(
         outlooks,
         now=now,
@@ -380,6 +384,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
         daylight_only=not args.any_hour,
         readings=readings,
         evidence=default_evidence(),
+        band_floors={spot.id: bands[spot.break_type].render() for spot in spots if spot.break_type in bands},
     )
     console.record(reading)
 
@@ -435,6 +440,8 @@ def cmd_spot(args: argparse.Namespace, console: Console) -> int:
     console.say(spot.name)
     for line in _geometry_lines(spot):
         console.say(line)
+    band = bands_from_log(book).get(spot.break_type)
+    console.say(f"  band floor    {band.render() if band else 'none for this setup type'}")
 
     now = console.clock()
     window = Window(start=now.replace(minute=0, second=0, microsecond=0), hours=args.days * 24)

@@ -195,6 +195,7 @@ def test_call_commits_to_a_spot_a_window_signals_and_falsifiers():
     # four axes, printed apart, never fused.
     for axis in ("BARREL", "SIZE", "CLEANNESS", "CONFIDENCE"):
         assert axis in out
+    assert "BAND minimum" in out and "no upper cap" in out
     assert "rating" not in out.lower()
 
 
@@ -256,6 +257,7 @@ def test_spot_prints_geometry_with_provenance():
     assert "0.035 (derived)" in out
     assert "44097" in out
     assert "(fixed)" in out
+    assert "band floor" in out and "convention" in out
 
 
 def test_spot_says_what_is_missing_rather_than_filling_it_in():
