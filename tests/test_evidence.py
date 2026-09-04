@@ -5,6 +5,7 @@ from datetime import date
 from surf.evidence import (
     ARCHETYPES,
     REFERENCE_EVENTS,
+    Archetype,
     Conditions,
     EvidenceRecord,
     Provenance,
@@ -39,12 +40,21 @@ def test_reference_event_and_archetype_conditions_carry_provenance():
     assert event.conditions.period_s == 12.5
     assert event.conditions.direction_deg == 121.0
     assert event.provenance.fetched_at is not None
-    assert all(archetype.conditions == Conditions() for archetype in ARCHETYPES)
-    assert all(archetype.provenance.dropped == ("no hindcast attached",) for archetype in ARCHETYPES)
+    assert event.provenance.valid_at is not None
+    assert all(archetype.conditions.height_m is not None for archetype in ARCHETYPES)
+    assert all(archetype.provenance.status == "ok" for archetype in ARCHETYPES)
+    assert all(archetype.provenance.valid_at is not None for archetype in ARCHETYPES)
+    assert all(archetype.provenance.model_run == "open-meteo-marine reanalysis" for archetype in ARCHETYPES)
 
 
 def test_explicit_session_contradiction_blocks_slab_nomination():
-    shipsterns = next(archetype for archetype in ARCHETYPES if archetype.id == "shipsterns")
+    # No Shipsterns hindcast is asserted in production. This constructed item
+    # keeps the preference guard executable without inventing famous-break data.
+    shipsterns = Archetype(
+        "shipsterns", "Shipsterns", "slab", Conditions(height_m=4.0, period_s=14.0),
+        ARCHETYPES[0].provenance,
+        contradiction_phrases=("do not use as evidence he wants slabs",),
+    )
     logged = session("super lucky one-off. Do NOT use as evidence he wants slabs")
     contradiction = contradiction_for(shipsterns, (logged,))
     assert contradiction is not None

@@ -58,6 +58,7 @@ class Provenance:
     source: str
     status: Status = "ok"
     fetched_at: datetime | None = None
+    valid_at: datetime | None = None
     model_run: str | None = None
     confidence: float | None = None
     dropped: tuple[str, ...] = ()
@@ -185,27 +186,48 @@ REFERENCE_EVENTS: tuple[ReferenceEvent, ...] = (
         on=date(2023, 12, 18),
         location="NDBC 44091 Barnegat NJ",
         conditions=Conditions(height_m=5.82, period_s=12.5, direction_deg=121.0),
-        provenance=Provenance(source=NDBC_44091_2023, fetched_at=NDBC_44091_FETCHED_AT),
+        provenance=Provenance(
+            source=NDBC_44091_2023,
+            fetched_at=NDBC_44091_FETCHED_AT,
+            valid_at=datetime(2023, 12, 18, 11, 56, tzinfo=timezone.utc),
+            model_run="NDBC 44091 standard meteorological archive 2023",
+        ),
         note="Sustained 3-sample-median peak; not a David session.",
     ),
 )
 
-# These are deliberately unmeasured canonical setup records. Empty conditions
-# are safer than invented numbers; a future hindcast can fill them with a new
-# provenance record without changing the evidence ladder.
-_ARCHETYPE_PROVENANCE = Provenance(
-    source="archetype registry",
-    status="skipped",
-    dropped=("no hindcast attached",),
-)
+# These two setup records are deliberately narrow: their conditions are copied
+# from the existing Open-Meteo archive cache for ideal logged sessions. They are
+# not new preference evidence and stay below the session rows in the ladder.
+OPEN_METEO_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 ARCHETYPES: tuple[Archetype, ...] = (
-    Archetype("uluwatu", "Uluwatu", "reef", Conditions(), _ARCHETYPE_PROVENANCE),
-    Archetype("j-bay", "J-Bay", "point", Conditions(), _ARCHETYPE_PROVENANCE),
-    Archetype("tonel", "Tonel", "point", Conditions(), _ARCHETYPE_PROVENANCE),
-    Archetype("the-box", "The Box", "slab", Conditions(), _ARCHETYPE_PROVENANCE),
     Archetype(
-        "shipsterns", "Shipsterns", "slab", Conditions(), _ARCHETYPE_PROVENANCE,
-        contradiction_phrases=("do not use as evidence he wants slabs",),
+        "belmar-ideal-2024-04-04",
+        "Belmar ideal reference setup",
+        "beach",
+        Conditions(height_m=2.30, period_s=8.05, direction_deg=89.0,
+                   wind_speed_mps=5.24, wind_direction_deg=305.0),
+        Provenance(
+            source=OPEN_METEO_ARCHIVE,
+            fetched_at=datetime(2026, 9, 3, 7, 47, 35, tzinfo=timezone.utc),
+            valid_at=datetime(2024, 4, 4, 11, tzinfo=timezone.utc),
+            model_run="open-meteo-marine reanalysis",
+        ),
+        note="Cached conditions for the 2024-04-04 ideal Belmar session.",
+    ),
+    Archetype(
+        "kommetjie-ideal-2023-02-25",
+        "Kommetjie ideal reference setup",
+        "beach",
+        Conditions(height_m=3.28, period_s=11.8, direction_deg=209.0,
+                   wind_speed_mps=7.54, wind_direction_deg=158.0),
+        Provenance(
+            source=OPEN_METEO_ARCHIVE,
+            fetched_at=datetime(2026, 9, 3, 17, 59, 25, tzinfo=timezone.utc),
+            valid_at=datetime(2023, 2, 25, 14, tzinfo=timezone.utc),
+            model_run="open-meteo-marine reanalysis",
+        ),
+        note="Cached conditions for the 2023-02-25 ideal Kommetjie session.",
     ),
 )
 
