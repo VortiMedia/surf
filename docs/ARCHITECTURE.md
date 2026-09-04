@@ -359,8 +359,8 @@ of it. Its result is a geometric screen, not a surf forecast.
 3. Build the lexicon mapping the log's language to physical quantities.
 4. Promote the two reconnaissance calculations that have already run in two
    geographies — the ERA5 joint swell/wind overlap by cell, and the bathymetric
-   shelf scan — into tested CLI subcommands over a derived cache. Everything
-   else stays scratch.
+   shelf scan — into tested CLI subcommands over a derived cache in
+   `data/climate/`, gitignored. Everything else stays scratch.
 5. Static-geometry imagery on shelf-scan candidates, as a separate tool from
    dynamic wave state.
 6. Reference events and archetypes, kept below sessions on the evidence ladder.

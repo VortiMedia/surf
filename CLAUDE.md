@@ -38,7 +38,9 @@ and nowhere else. Do not create a new top-level doc to hold one paragraph.
 
 Two committed files, `spots.tsv` and `sessions.tsv`, and they are the source of
 truth. Everything else under `data/` is generated and gitignored: `cache/`,
-`imagery/`, `overlays/`. Generated output never goes next to the TSVs — if a
+`imagery/`, `overlays/`, `exposure/` and `climate/`. `climate/` holds the derived
+reanalysis and bathymetry cache — it is expensive to rebuild and worthless to
+review in a diff, so it is generated, never committed, and never authoritative. Generated output never goes next to the TSVs — if a
 script emits KML, GeoJSON, PNGs or JSON dumps, it emits them into a gitignored
 directory or into the session scratchpad, never into `data/` root and never into
 `docs/`.

@@ -22,7 +22,7 @@ from surf.spots import Derived, Spot
 from surf.waves import Forecast, SwellPartition, WaveField
 from surf.sources import Window
 
-T0 = 1788343200  # 2026-09-01T18:00:00Z
+T0 = 1788343200  # 2026-09-02T10:00:00Z
 
 
 def _spot(surfline_id: str | None = "5842041f4e65fad6a7708890") -> Spot:
@@ -279,6 +279,9 @@ def test_live_surfline_still_answers():
     """curl gets a 403 from the WAF here; httpx with a real User-Agent does not."""
     adapter = Surfline(enabled=True)
     assert adapter.preflight().value is True
-    r = adapter.partitions(_spot(), _window(hours=24))
+    # T0 is a frozen fixture constant; a live window has to start now or every
+    # hour Surfline returns falls outside it.
+    now = Window(start=datetime.now(timezone.utc), hours=24)
+    r = adapter.partitions(_spot(), now)
     assert r.ok and r.value.hours
     assert r.value.hours[0].partitions

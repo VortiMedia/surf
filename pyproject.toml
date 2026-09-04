@@ -21,4 +21,5 @@ include = ["surf*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["network: hits a live public API; deselect with -m 'not network'"]
+addopts = "-m 'not network'"
+markers = ["network: hits a live public API; run it with -m network"]
