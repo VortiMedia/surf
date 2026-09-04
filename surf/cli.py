@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from collections.abc import Sequence
@@ -44,6 +45,13 @@ from .ndbc import NdbcObservations
 from .open_meteo import MarineModelSet, OpenMeteoArchive
 from .reach import reach_from_log
 from .score import Components
+from .snapshots import (
+    BuoyObservation,
+    SnapshotError,
+    SnapshotStore,
+    snapshot_from_hour,
+    verify_snapshots,
+)
 from .sessions import (
     COLUMNS as SESSION_COLUMNS,
     SessionFileError,
@@ -66,7 +74,7 @@ from .terrain import (
     scan_grid,
     terrain_cache_path,
 )
-from .waves import Forecast, TidePoint, WaveField, m_to_ft, mps_to_kt
+from .waves import Forecast, SwellPartition, TidePoint, WaveField, m_to_ft, mps_to_kt
 
 PROGRAM = "surf"
 
@@ -981,6 +989,102 @@ def cmd_session(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
+def _snapshot_time(raw: str) -> datetime:
+    try:
+        value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise SnapshotError(f"invalid ISO timestamp {raw!r}") from exc
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _load_snapshot_observations(path: str | None) -> tuple[BuoyObservation, ...]:
+    """Read explicit, later buoy observations without filling omitted fields."""
+    if not path:
+        return ()
+    observations: list[BuoyObservation] = []
+    for line, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw.strip():
+            continue
+        try:
+            item = json.loads(raw)
+            time = _snapshot_time(item["time"])
+            height_m = item.get("height_m")
+            period_s = item.get("period_s")
+            direction_deg = item.get("direction_deg")
+            partitions = ()
+            if height_m is not None and period_s is not None and direction_deg is not None:
+                partitions = (SwellPartition(float(height_m), float(period_s), float(direction_deg)),)
+            field = WaveField(
+                time=time,
+                partitions=partitions,
+                total_height_m=None if height_m is None else float(height_m),
+                total_period_s=None if period_s is None else float(period_s),
+                model=str(item.get("source", "buoy")),
+            )
+            observations.append(BuoyObservation(
+                spot=str(item["spot"]), field=field,
+                height_quantity=item.get("height_quantity", "offshore_hs"),
+            ))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise SnapshotError(f"{path}: malformed observation at line {line}: {exc}") from exc
+    return tuple(observations)
+
+
+def cmd_snapshot(args: argparse.Namespace, console: Console) -> int:
+    """Issue an append-only forecast snapshot or verify stored snapshots later."""
+    store = SnapshotStore(args.path)
+    if args.action == "verify":
+        observations = _load_snapshot_observations(args.observations)
+        sessions = load_sessions(args.sessions, book=console.spots()) if args.sessions else ()
+        report = verify_snapshots(store.read(), observations, sessions)
+        console.say(f"SNAPSHOT VERIFY  {len(report.rows)} rows  {len(report.scored)} scored")
+        for row in report.unscored:
+            console.say(f"  {row.snapshot.spot} {row.snapshot.valid_at.isoformat()}: unscored ({row.reason})")
+        for group in report.groups:
+            console.say(
+                f"  group lead={group.lead_hours:g}h region={group.region} "
+                f"period={group.period_s if group.period_s is not None else 'unknown'} "
+                f"direction={group.direction_deg if group.direction_deg is not None else 'unknown'} "
+                f"size={group.size_band or 'unknown'} regime={group.regime or 'unknown'} "
+                f"n={group.count} mae_h={group.mae_height_m if group.mae_height_m is not None else 'unknown'}"
+            )
+        return EXIT_OK
+
+    if not args.spot or not args.valid_at or not args.model_run:
+        console.warn("snapshot issue requires --spot, --valid-at and --model-run")
+        return EXIT_USAGE
+    valid_at = _snapshot_time(args.valid_at)
+    issued_at = _snapshot_time(args.issued_at) if args.issued_at else console.clock()
+    spot = console.spots().resolve(args.spot)
+    if spot is None:
+        console.warn(f"no spot matches {args.spot!r}")
+        return EXIT_FAILED
+    if valid_at.minute or valid_at.second or valid_at.microsecond:
+        console.warn("snapshot issue requires an hourly --valid-at matching the forecast path")
+        return EXIT_USAGE
+    if issued_at >= valid_at:
+        console.warn("snapshot issue must write before valid_at")
+        return EXIT_FAILED
+    start = issued_at.replace(minute=0, second=0, microsecond=0)
+    hours = int((valid_at - start).total_seconds() // 3600) + 1
+    forecast = console.service().outlook(spot, Window(start=start, hours=hours))
+    hour = forecast.at(valid_at)
+    if hour is None:
+        console.warn(f"forecast has no hour at {valid_at.isoformat()}")
+        return EXIT_FAILED
+    snapshot = snapshot_from_hour(
+        forecast, hour, issued_at=issued_at, model_run=args.model_run,
+        height_quantity=args.height_quantity, regime=args.regime,
+    )
+    snapshot_id = store.write(snapshot, now=console.clock())
+    console.say(f"wrote snapshot {snapshot_id} for {snapshot.spot} at {snapshot.valid_at.isoformat()}")
+    console.say(f"  lead_hours={snapshot.lead_hours:g} height_quantity={snapshot.height_quantity}")
+    console.say(f"  geometry_version={snapshot.geometry_version}")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=PROGRAM,
@@ -1084,6 +1188,24 @@ def build_parser() -> argparse.ArgumentParser:
     session.add_argument("--years", default=None, help="candidate years, comma-separated (audit)")
     session.add_argument("--dry-run", action="store_true", help="report repairs without writing (audit)")
     session.set_defaults(run=cmd_session)
+
+    snapshot = sub.add_parser(
+        "snapshot", help="freeze a forecast before validity and verify it against later outcomes"
+    )
+    snapshot.add_argument("action", choices=("issue", "verify"))
+    snapshot.add_argument("--path", required=True, help="append-only snapshot JSONL path")
+    snapshot.add_argument("--spot", default=None, help="spot id or name (issue)")
+    snapshot.add_argument("--valid-at", default=None, help="forecast validity time in ISO form (issue)")
+    snapshot.add_argument("--issued-at", default=None, help="issue time in ISO form; defaults to the clock (issue)")
+    snapshot.add_argument("--model-run", default=None, help="source model run identifier (issue)")
+    snapshot.add_argument(
+        "--height-quantity", choices=("offshore_hs", "nearshore_hs", "face_height"),
+        default="offshore_hs", help="height quantity recorded by the snapshot (issue)",
+    )
+    snapshot.add_argument("--regime", default="", help="explicit regime, if known (issue)")
+    snapshot.add_argument("--observations", default=None, help="later buoy observations JSONL (verify)")
+    snapshot.add_argument("--sessions", default=None, help="session log to join (verify)")
+    snapshot.set_defaults(run=cmd_snapshot)
 
     exposure = sub.add_parser(
         "exposure", help="colour a coastline GeoJSON by exposure to one swell direction"

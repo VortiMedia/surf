@@ -43,6 +43,7 @@ a rating back.
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
+| `surf snapshot issue` / `surf snapshot verify` | Freeze a forecast JSONL record before `valid_at`, then join it later to explicit buoy observations and session rows. Snapshots are append-only; errors stay unscored when observations are missing or quantities do not match. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
 ## Band floors
@@ -210,6 +211,14 @@ Run `surf sources` and report the statuses rather than guessing at the cause.
 Never fill a hole with an estimate. A skipped bathymetry read means BARREL falls
 back to the steepness proxy and the call says which basis it used — not that a
 slope gets invented.
+
+Forecast verification has a separate evidence boundary. `surf snapshot issue`
+writes model fields, source receipts, issue/valid times, lead, spot, region,
+regime and geometry version before the event; `surf snapshot verify` joins later
+buoy observations and session rows and reports errors by lead time, region,
+period, direction and size band. Every height names its quantity: `offshore_hs`,
+`nearshore_hs`, or `face_height`. Face height is not computed from nearshore Hs.
+An absent observation or incompatible quantity is unscored, never backfilled.
 
 `surf session audit` applies the same rule to the ground-truth log. It writes
 spot ids from `data/spots.tsv`, reports the resolvable count before and after,
