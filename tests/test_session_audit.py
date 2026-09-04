@@ -102,3 +102,30 @@ def test_audit_accepts_explicit_permanent_unanswerable(tmp_path):
     assert report.questions == ()
     assert len(report.unanswerable) == 2
     assert report.wrote is False
+
+
+def test_legacy_five_column_file_loads_with_empty_regime(tmp_path):
+    path = tmp_path / "legacy.tsv"
+    path.write_text(
+        "date\tspot\ttime\trating\tnotes\n"
+        "2024-02-29\tPoint Judith RI\t--\t4\tfun\n",
+        encoding="utf-8",
+    )
+    loaded = load_sessions(path, book=BOOK)
+    assert loaded[0].regime == ""
+
+
+def test_audit_backfills_only_an_explicit_regime_and_lists_missing(tmp_path):
+    path = tmp_path / "sessions.tsv"
+    _write(
+        path,
+        "2024-02-29\tPoint Judith RI\t--\t4\toversized day\n"
+        "2024-03-01\tPoint Judith RI\t--\t4\tfun\n",
+    )
+    report = audit_sessions(path, book=BOOK)
+
+    assert report.after[0].regime == "oversized"
+    assert report.after[1].regime == ""
+    assert len(report.missing_regime) == 1
+    assert any(r.field == "regime" and r.after == "oversized" for r in report.repairs)
+    assert path.read_text(encoding="utf-8").splitlines()[1].endswith("\tregime")

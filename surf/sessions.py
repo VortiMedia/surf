@@ -27,6 +27,7 @@ class Session:
     date_uncertain: bool = False
     time_uncertain: bool = False
     source: str = "david"  # "public" anchors use a different rating scale and must not be merged in
+    regime: str = ""
 
     @property
     def usable_for_check(self) -> bool:
@@ -34,7 +35,8 @@ class Session:
         return self.on is not None and self.spot_id is not None and self.rating is not None
 
 
-COLUMNS: tuple[str, ...] = ("date", "spot", "time", "rating", "notes")
+COLUMNS: tuple[str, ...] = ("date", "spot", "time", "rating", "notes", "regime")
+LEGACY_COLUMNS: tuple[str, ...] = COLUMNS[:-1]
 
 UNKNOWN_SPOT = "unknown"
 
@@ -47,6 +49,17 @@ _CLOCK = re.compile(r"^(\d{1,2}):(\d{2})$")
 # `hour` empty rather than inventing 06:00.
 _VAGUE_TIMES = frozenset({"early", "sunrise", "sunset", "dawn", "dusk", "morning", "afternoon", "evening"})
 _NO_TIME = frozenset({"", "--", "-", "?"})
+
+# These are deliberately exact, explicit phrases from the log. A row with more
+# than one match is left blank rather than assigning a made-up primary regime.
+_REGIME_PHRASES: tuple[tuple[str, str], ...] = (
+    (r"\boversized\b", "oversized"),
+    (r"\bshort period\b", "short-period"),
+    (r"\bground ?swell\b", "groundswell"),
+    (r"\bwind ?swell\b", "windswell"),
+    (r"\boffshore\b", "offshore"),
+    (r"\bgrovel\b", "grovel"),
+)
 
 
 class SessionFileError(ValueError):
@@ -93,6 +106,10 @@ class SessionAudit:
     def after_resolvable(self) -> int:
         return len(usable(self.after))
 
+    @property
+    def missing_regime(self) -> tuple[Session, ...]:
+        return tuple(session for session in self.after if not session.regime)
+
 
 def _unanswerable(notes: str, field: str) -> str | None:
     """Return a human provenance marker for a permanently unknown field."""
@@ -101,6 +118,17 @@ def _unanswerable(notes: str, field: str) -> str | None:
         if line.strip().upper().startswith(prefix):
             return line.strip()
     return None
+
+
+def infer_regime(notes: str) -> tuple[str, str] | None:
+    """Infer one regime only when the note contains one explicit regime phrase."""
+    matches = [(regime, phrase) for phrase, regime in _REGIME_PHRASES
+               if re.search(phrase, notes, re.IGNORECASE)]
+    if len(matches) != 1:
+        return None
+    regime, phrase = matches[0]
+    wording = phrase.replace(r"\b", "").replace(" ?", " ")
+    return regime, f"explicit note phrase {wording!r}"
 
 
 def _wave_field_is_surfable(field: Any) -> bool:
@@ -180,7 +208,7 @@ def _rewrite_audited_file(path: Path, sessions: Sequence[Session]) -> None:
             continue
         if not header_seen:
             header_seen = True
-            out.append(line)
+            out.append("\t".join(COLUMNS))
             continue
         if index >= len(sessions):
             raise SessionFileError(f"{path}: audit row count changed while writing")
@@ -227,6 +255,18 @@ def audit_sessions(
                 notes=_audit_note(current.notes, basis),
             )
             repairs.append(SessionRepair(row, "spot", session.raw_spot, spot.id, basis))
+
+        if not current.regime:
+            inferred = infer_regime(current.notes)
+            if inferred is not None:
+                regime, evidence = inferred
+                basis = f"{evidence} (regime={regime})"
+                current = replace(
+                    current,
+                    regime=regime,
+                    notes=_audit_note(current.notes, f"regime {regime} from {evidence}"),
+                )
+                repairs.append(SessionRepair(row, "regime", "", regime, basis))
 
         if current.on is None and current.date_uncertain and archive is not None:
             partial = _PARTIAL_DATE.match(current.raw_date.strip().rstrip("?"))
@@ -356,12 +396,16 @@ def load_sessions(
         cells = line.split("\t")
         if header is None:
             header = [c.strip() for c in cells]
-            if header[: len(COLUMNS)] != list(COLUMNS):
-                raise SessionFileError(f"{path}: header is {header}, expected {list(COLUMNS)}")
+            if header not in (list(LEGACY_COLUMNS), list(COLUMNS)):
+                raise SessionFileError(
+                    f"{path}: header is {header}, expected {list(LEGACY_COLUMNS)} "
+                    f"or {list(COLUMNS)}"
+                )
             continue
-        if len(cells) < len(COLUMNS):
-            cells = cells + [""] * (len(COLUMNS) - len(cells))
-        raw_date, raw_spot, raw_time, raw_rating, notes = cells[: len(COLUMNS)]
+        if len(cells) < len(header):
+            cells = cells + [""] * (len(header) - len(cells))
+        raw_date, raw_spot, raw_time, raw_rating, notes = cells[: len(LEGACY_COLUMNS)]
+        regime = cells[5].strip() if len(header) == len(COLUMNS) else ""
 
         try:
             on, date_uncertain = parse_date(raw_date)
@@ -378,6 +422,7 @@ def load_sessions(
                 raw_time=raw_time,
                 rating=rating,
                 notes=notes,
+                regime=regime,
                 on=on,
                 hour=hour,
                 spot_id=spot.id if spot else None,
@@ -395,13 +440,18 @@ def load_sessions(
 def format_row(session: Session) -> list[str]:
     # Only raw fields are written back; the derived ones are re-parsed on load, so
     # a save can never harden a guess into the file.
-    return [
+    cells = [
         session.raw_date,
         session.raw_spot,
         session.raw_time,
         "" if session.rating is None else str(session.rating),
         session.notes,
     ]
+    # A blank final field is omitted to keep the TSV free of trailing tabs; the
+    # loader pads it back to the declared column count.
+    if session.regime:
+        cells.append(session.regime)
+    return cells
 
 
 def save_sessions(sessions: Iterable[Session], path: Path | str) -> None:

@@ -275,7 +275,7 @@ def test_session_file_round_trips(tmp_path: Path, book: SpotBook, log) -> None:
     assert reloaded == log
 
     original_rows = [
-        line.split("\t")[:5]
+        line.split("\t")
         for line in SESSIONS_PATH.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.startswith("#")
     ][1:]

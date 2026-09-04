@@ -4,6 +4,7 @@ the cache. The session log (data/sessions.tsv, data/spots.tsv) is the fixture.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 import pytest
@@ -289,6 +290,14 @@ def test_calibrate_runs_offline_from_the_cache_and_prints_pass_fail(tmp_path):
     assert "[PASS] no 1/5 dominates a 5/5" in text
     assert "[SKIP]" in text                      # the yearless 03-03 half
     assert "conditions recovered: 4/4" in text
+
+
+def test_calibrate_prints_regime_with_each_scored_session(tmp_path):
+    cache, _, sessions = warm_cache(tmp_path)
+    marked = tuple(replace(s, regime="groundswell") for s in sessions)
+    report = calibrate(None, sessions=marked, book=BOOK, cache=cache)
+
+    assert "regime=groundswell" in report.render()
 
 
 def test_calibrate_reports_the_sessions_it_could_not_recover(tmp_path):

@@ -233,9 +233,10 @@ class Recovered:
     def label(self) -> str:
         when = self.session.on.isoformat() if self.session.on else self.session.raw_date
         mark = "~" if self.hour_assumed else " "
+        regime = self.session.regime or "unassigned"
         return (
             f"{when}{mark}{self.hour_utc:02d}Z {self.spot.name} "
-            f"{self.session.rating}/5 [{self.status}] {self.note}".rstrip()
+            f"{self.session.rating}/5 regime={regime} [{self.status}] {self.note}".rstrip()
         )
 
 
@@ -643,6 +644,8 @@ class CalibrationReport:
             f"conditions recovered: {recovered_ok}/{len(self.recovered)} usable sessions"
             f"  ({assumed} at an assumed {DEFAULT_LOCAL_HOUR:02d}:00 local)"
         )
+        for scored in self.scored:
+            lines.append(f"  scored: {scored.label()}")
         for rec in self.recovered:
             if not rec.ok:
                 lines.append(f"  no conditions: {rec.label()}")

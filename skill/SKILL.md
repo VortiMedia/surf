@@ -36,9 +36,9 @@ a rating back.
 | `surf call [--region R] [--days N]` | The product. One recommendation across the region and window. |
 | `surf spot <name>` | One spot in depth: components, geometry, provenance, what is missing. |
 | `surf climate --zone Z --start YYYY-MM-DD --end YYYY-MM-DD` | Measure historical swell/wind overlap per zone cell; uses the derived cache in `data/climate/`. Add `--refresh` to rebuild it. |
-| `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component. |
+| `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, and print each scored row's regime with the component results. |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
-| `surf session add` | Append a row to `data/sessions.tsv`. |
+| `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
@@ -202,6 +202,11 @@ when the candidate years contain exactly one day with archived waves; multiple
 candidates or missing data remain a `NEEDS YEAR` question. It never guesses a
 year, spot, rating or wave quality. Run `surf calibrate --path F` on an audited
 non-default log.
+
+The final session column is `regime`. Older five-column logs still load with an
+empty regime. Audit fills it only for one explicit phrase in the note (for
+example `oversized`, `short period`, `offshore`, or `grovel`) and lists every
+other row as missing; it never infers a regime from a rating or forecast.
 
 ## Output
 

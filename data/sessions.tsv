@@ -1,8 +1,8 @@
 # My surf log. Rating 5=ideal, 4=fun, 3=ok, 2=poor, 1=unsurfable.
 # The rating is how the session was, not how big it was: a big swell a spot
 # cannot hold is not a good day. `?` marks a date or time I am not sure of.
-# Columns: date TAB spot TAB time TAB rating TAB notes. Add rows any time.
-date	spot	time	rating	notes
+# Columns: date TAB spot TAB time TAB rating TAB notes TAB regime. Add rows any time.
+date	spot	time	rating	notes	regime
 2025-09-30	spring-lake	08:00?	2	walled out, closed out, messy; better in the morning [audit: canonical spot id from spots.tsv (spring-lake)]
 2025-08-10	spring-lake	09:00	2	super small, barely rippable on a twin fin, one turn [audit: canonical spot id from spots.tsv (spring-lake)]
 2025-08-05?	bay-head	--	3	almost head high on standout sets, mostly chest, inconsistent, fast and racy [audit: canonical spot id from spots.tsv (bay-head)]
@@ -10,26 +10,26 @@ date	spot	time	rating	notes
 2025-03-12	llandudno	18:00	5	PERFECT. wish every day was like this. ideal conditions, all I want to surf [audit: canonical spot id from spots.tsv (llandudno)]
 2025-02-24?	llandudno	--	4	small, fun, playful, good old time [audit: canonical spot id from spots.tsv (llandudno)]
 2025-02-15	llandudno	--	4	really fun, awesome waves [audit: canonical spot id from spots.tsv (llandudno)]
-2025-02-05	kommetjie	17:00	3	spot could NOT hold the swell THAT DAY, needed a gun; not steep/punchy, hard to chip in. NOT too big and NOT uncomfortable — fun, he just wasn't really surfing. Sunsets went off same day. This 3 is about one oversized day, NOT the spot: Kommetjie is a spot David loves (see 2023-02-25, 5/5) [audit: canonical spot id from spots.tsv (kommetjie)]
+2025-02-05	kommetjie	17:00	3	spot could NOT hold the swell THAT DAY, needed a gun; not steep/punchy, hard to chip in. NOT too big and NOT uncomfortable — fun, he just wasn't really surfing. Sunsets went off same day. This 3 is about one oversized day, NOT the spot: Kommetjie is a spot David loves (see 2023-02-25, 5/5) [audit: canonical spot id from spots.tsv (kommetjie)] [audit: regime oversized from explicit note phrase '\\boversized\\b']	oversized
 2025-02-05	sandy-bay	14:22	3	super lucky one-off wave on a mess-around day; sketchy, fun shore break. NOT a proper session and NOT an ideal-conditions day — was logged 5 by mistake, David downgraded it. Do not use as evidence he wants slabs [audit: canonical spot id from spots.tsv (sandy-bay)]
 2025-02-24?	lido-beach	--	3	rough, logable but clean  (AMBIGUOUS: said "February 2025" and "Feb 24 2024" — may be one session or two) [audit: canonical spot id from spots.tsv (lido-beach)]
 2024-12-12	spring-lake	10:00?	1	hungover, snapped leash, over the falls; slabby, sucking up, walled, closed out [audit: canonical spot id from spots.tsv (spring-lake)]
 2024-10-26	meio-noronha	16:02	3	small but fun looking; did not surf [audit: canonical spot id from spots.tsv (meio-noronha)]
 2024-09-17	lido-beach	08:00?	2	thought it'd be bigger and wasn't; super crowded [audit: canonical spot id from spots.tsv (lido-beach)]
-2024-09-16?	lido-beach	08:51	3	sick looking but walled out, short period [audit: canonical spot id from spots.tsv (lido-beach)]
+2024-09-16?	lido-beach	08:51	3	sick looking but walled out, short period [audit: canonical spot id from spots.tsv (lido-beach)] [audit: regime short-period from explicit note phrase '\\bshort period\\b']	short-period
 2024-07-18	lido-beach	09:00	4	copped a barrel; got worse after, 08:00 was best [audit: canonical spot id from spots.tsv (lido-beach)]
 2024-04-13	belmar	--	5	quad fin, got barreled, backflip out [audit: canonical spot id from spots.tsv (belmar)]
 2024-04-04	belmar	06:48	5	spitting tubes, what dreams are made of [audit: canonical spot id from spots.tsv (belmar)]
 2024-03-24	lido-beach	10:30	4	rideable tubes [audit: canonical spot id from spots.tsv (lido-beach)]
 2024-03-24	lido-beach	07:00	5	some of the best Lido I've seen; fun closeouts, dreamiest [audit: canonical spot id from spots.tsv (lido-beach)]
 2024-02-24	lido-beach	--	3	rough, logable but clean [audit: canonical spot id from spots.tsv (lido-beach)]
-2024-01-16	playa-langosta	--	3	offshore, kind of small (a sunset session that trip was pumping — best day ever; exact date unconfirmed) [audit: canonical spot id from spots.tsv (playa-langosta)]
+2024-01-16	playa-langosta	--	3	offshore, kind of small (a sunset session that trip was pumping — best day ever; exact date unconfirmed) [audit: canonical spot id from spots.tsv (playa-langosta)] [audit: regime offshore from explicit note phrase '\\boffshore\\b']	offshore
 2024-01-09?	carcavelos	14:47	4	looked so awesome; did not surf [audit: canonical spot id from spots.tsv (carcavelos)]
 2023-12-11?	beliche	16:36	5	pumping, so much fun [audit: canonical spot id from spots.tsv (beliche)]
-2022-07-29	little-compton	early	2	grovel [audit: canonical spot id from spots.tsv (little-compton)]
+2022-07-29	little-compton	early	2	grovel [audit: canonical spot id from spots.tsv (little-compton)] [audit: regime grovel from explicit note phrase '\\bgrovel\\b']	grovel
 2022-09-10	point-judith	--	2	small [audit: canonical spot id from spots.tsv (point-judith)]
 2022-09-23	camp-hero	--	3	[audit: canonical spot id from spots.tsv (camp-hero)]
-2022-06-15?	little-compton	sunset	3	small, fun, grovel (also 6/16 sunrise) [audit: canonical spot id from spots.tsv (little-compton)]
+2022-06-15?	little-compton	sunset	3	small, fun, grovel (also 6/16 sunrise) [audit: canonical spot id from spots.tsv (little-compton)] [audit: regime grovel from explicit note phrase '\\bgrovel\\b']	grovel
 2024-02-29	point-judith	--	4	fun  (Feb 29 = leap year, so 2024 confirmed) [audit: canonical spot id from spots.tsv (point-judith)]
 ????-02-22	point-judith	08:48	4	fun [audit: canonical spot id from spots.tsv (point-judith)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
 ????-05-21	point-judith	--	4	more fun [audit: canonical spot id from spots.tsv (point-judith)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year

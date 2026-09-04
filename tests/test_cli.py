@@ -331,6 +331,21 @@ def test_session_add_appends_and_keeps_the_comment_header(tmp_path):
     assert "resolves to point-judith" in out
 
 
+def test_session_add_regime_upgrades_a_legacy_file(tmp_path):
+    path = _log(tmp_path)
+    code, out, err = run(
+        "session", "add", "--date", "2026-09-11", "--spot", "Point Judith",
+        "--rating", "4", "--regime", "groundswell", "--path", str(path),
+        sources=Sources(),
+    )
+    assert code == cli.EXIT_OK, err
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert lines[0].startswith("#")
+    assert lines[1].endswith("\tregime")
+    assert len(lines[2].split("\t")) == 5  # empty final regime is omitted, not guessed
+    assert lines[-1].endswith("\tgroundswell")
+
+
 def test_session_add_keeps_uncertainty_instead_of_resolving_it(tmp_path):
     """`????-03-03` is a real row: month and day known, year not. The CLI has to
     be able to write what the loader can read."""

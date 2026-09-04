@@ -566,6 +566,10 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
             )
     else:
         console.say("questions: none")
+    if report.missing_regime:
+        console.say("missing regime")
+        for session in report.missing_regime:
+            console.say(f"  {session.raw_date}\t{session.raw_spot}")
     if report.unanswerable:
         console.say("permanent unanswerables")
         seen: set[tuple[str, str, str]] = set()
@@ -763,18 +767,39 @@ def cmd_session(args: argparse.Namespace, console: Console) -> int:
         console.warn(f"not written: {exc}")
         return EXIT_FAILED
 
-    if "\t" in "".join((args.date, args.spot, args.time, args.rating, args.notes)):
+    regime = args.regime.strip()
+    if "\t" in "".join((args.date, args.spot, args.time, args.rating, args.notes, regime)):
         console.warn("not written: a field contains a tab, which would split the row")
         return EXIT_FAILED
 
-    row = "\t".join(
-        (on, args.spot.strip(), args.time.strip(), "" if rating is None else str(rating), args.notes.strip())
-    )
+    values = (on, args.spot.strip(), args.time.strip(), "" if rating is None else str(rating), args.notes.strip())
     if path.exists():
         text = path.read_text(encoding="utf-8")
         prefix = "" if text.endswith("\n") or not text else "\n"
+        header = next((line.split("\t") for line in text.splitlines()
+                       if line.strip() and not line.lstrip().startswith("#")), [])
+        legacy = header == list(SESSION_COLUMNS[:-1])
+        if regime and legacy:
+            # A supplied regime must not disappear into a legacy five-column
+            # header. Upgrade existing rows, retaining every comment line.
+            upgraded = []
+            header_seen = False
+            for line in text.splitlines():
+                if not line.strip() or line.lstrip().startswith("#"):
+                    upgraded.append(line)
+                elif not header_seen:
+                    header_seen = True
+                    upgraded.append("\t".join(SESSION_COLUMNS))
+                else:
+                    upgraded.append(line)
+            path.write_text("\n".join(upgraded) + "\n", encoding="utf-8")
+            text = path.read_text(encoding="utf-8")
+            prefix = "" if text.endswith("\n") or not text else "\n"
+            legacy = False
+        row = "\t".join(values + ((regime,) if regime and not legacy else ()))
     else:
         prefix = "\t".join(SESSION_COLUMNS) + "\n"
+        row = "\t".join(values + ((regime,) if regime else ()))
     with path.open("a", encoding="utf-8") as handle:
         handle.write(prefix + row + "\n")
 
@@ -864,6 +889,7 @@ def build_parser() -> argparse.ArgumentParser:
     session.add_argument("--time", default="", help="HH:MM, a word like 'early', or empty")
     session.add_argument("--rating", default="", help="1-5, your own call. Empty means unrated")
     session.add_argument("--notes", default="", help="what it was actually like")
+    session.add_argument("--regime", default="", help="explicit swell/wind regime, if known")
     session.add_argument("--path", default=None, help="session file to append to")
     session.add_argument("--online", action="store_true", help="reach the archive for date recovery (audit)")
     session.add_argument("--years", default=None, help="candidate years, comma-separated (audit)")
