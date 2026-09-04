@@ -7,6 +7,7 @@ from surf.snapshots import SnapshotStore, size_band
 from surf.spots import SpotBook
 from surf.sources import Reading, Window
 from surf.waves import SwellPartition, TidePoint, WaveField, Wind
+from surf import cli
 from surf.watch import (
     Range,
     SavedSetup,
@@ -111,3 +112,33 @@ def test_no_model_run_does_not_invent_snapshot_provenance(tmp_path):
     )
     assert result.snapshots_written == 0
     assert "model_run is required" in result.dropped[0]
+
+
+def test_cli_scheduled_run_requires_provenance_and_defaults_snapshot_archive(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SURF_DATA", str(tmp_path))
+    setup_path = tmp_path / "setup.json"
+    SetupStore(setup_path).save(SETUP)
+
+    book = SpotBook((SPOT,))
+    missing = cli.main(["watch", "run", "--path", str(setup_path)], console=cli.Console(book=book))
+    assert missing == cli.EXIT_USAGE
+    assert "requires --model-run" in capsys.readouterr().err
+
+    captured = {}
+
+    def fake_run(setup, *, service, book, now, snapshot_store, model_run):
+        captured["path"] = snapshot_store.path
+        captured["model_run"] = model_run
+        from surf.watch import WatchRun
+        return WatchRun(())
+
+    monkeypatch.setattr(cli, "run_watch", fake_run)
+    code = cli.main(
+        ["watch", "run", "--path", str(setup_path), "--model-run", "run-1"],
+        console=cli.Console(book=book, clock=lambda: NOW),
+    )
+    assert code == cli.EXIT_OK
+    assert captured == {
+        "path": tmp_path / "cache" / "forecast-snapshots.jsonl",
+        "model_run": "run-1",
+    }

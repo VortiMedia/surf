@@ -14,7 +14,9 @@ NOW = datetime(2026, 9, 3, 12, tzinfo=timezone.utc)
 
 def test_tools_map_to_all_existing_cli_surfaces():
     assert {tool["name"] for tool in mcp.tools()} == {
-        "sources", "call", "spot", "calibrate", "geometry", "session_add", "exposure"
+        "sources", "call", "spot", "climate", "lexicon", "terrain", "imagery",
+        "wave_state", "calibrate", "geometry", "session_add", "session_audit",
+        "snapshot_issue", "snapshot_verify", "watch_save", "watch_run", "exposure",
     }
 
 
@@ -24,9 +26,19 @@ def test_tools_map_to_all_existing_cli_surfaces():
         ("sources", {}, ["sources"]),
         ("call", {"region": "US-NY", "spot": ["lido"], "days": 4, "any_hour": True}, ["call", "--region", "US-NY", "--spot", "lido", "--days", "4", "--any-hour"]),
         ("spot", {"name": "lido", "days": 2}, ["spot", "lido", "--days", "2"]),
-        ("calibrate", {"online": True, "refresh": True, "no_matrix": True}, ["calibrate", "--online", "--refresh", "--no-matrix"]),
+        ("climate", {"zone": "US-NY", "start": "2024-01-01", "end": "2024-01-31", "refresh": True}, ["climate", "--zone", "US-NY", "--start", "2024-01-01", "--end", "2024-01-31", "--refresh"]),
+        ("lexicon", {"phrase": "grovel"}, ["lexicon", "grovel"]),
+        ("terrain", {"zone": "z", "bbox": "1,2,3,4", "step": 0.1}, ["terrain", "--zone", "z", "--bbox", "1,2,3,4", "--step", "0.1"]),
+        ("imagery", {"zone": "z", "bbox": "1,2,3,4", "frames": "static.json"}, ["imagery", "--zone", "z", "--bbox", "1,2,3,4", "--frames", "static.json"]),
+        ("wave_state", {"zone": "z", "bbox": "1,2,3,4", "frames": "waves.json"}, ["wave-state", "--zone", "z", "--bbox", "1,2,3,4", "--frames", "waves.json"]),
+        ("calibrate", {"online": True, "refresh": True, "no_matrix": True, "path": "sessions.tsv"}, ["calibrate", "--online", "--refresh", "--no-matrix", "--path", "sessions.tsv"]),
         ("geometry", {"spot": "lido", "write": True, "refresh": True}, ["geometry", "--spot", "lido", "--write", "--refresh"]),
-        ("session_add", {"date": "2026-09-03", "spot": "lido", "rating": 4}, ["session", "add", "--date", "2026-09-03", "--spot", "lido", "--rating", "4"]),
+        ("session_add", {"date": "2026-09-03", "spot": "lido", "rating": 4, "regime": "ground"}, ["session", "add", "--date", "2026-09-03", "--spot", "lido", "--rating", "4", "--regime", "ground"]),
+        ("session_audit", {"path": "sessions.tsv", "years": "2023,2024", "online": True, "dry_run": True}, ["session", "audit", "--path", "sessions.tsv", "--years", "2023,2024", "--online", "--dry-run"]),
+        ("snapshot_issue", {"path": "snapshots.jsonl", "spot": "lido", "valid_at": "2026-09-04T12:00Z", "model_run": "run", "height_quantity": "nearshore_hs"}, ["snapshot", "issue", "--path", "snapshots.jsonl", "--spot", "lido", "--valid-at", "2026-09-04T12:00Z", "--model-run", "run", "--height-quantity", "nearshore_hs"]),
+        ("snapshot_verify", {"path": "snapshots.jsonl", "observations": "buoy.jsonl", "sessions": "sessions.tsv"}, ["snapshot", "verify", "--path", "snapshots.jsonl", "--observations", "buoy.jsonl", "--sessions", "sessions.tsv"]),
+        ("watch_save", {"path": "setup.json", "name": "reef", "spot": ["one", "two"], "conditions": "conditions.json"}, ["watch", "save", "--path", "setup.json", "--name", "reef", "--spot", "one", "--spot", "two", "--conditions", "conditions.json"]),
+        ("watch_run", {"path": "setup.json", "model_run": "run-1", "snapshots": "snapshots.jsonl"}, ["watch", "run", "--path", "setup.json", "--model-run", "run-1", "--snapshots", "snapshots.jsonl"]),
         ("exposure", {"coastline": "coast.json", "swell": 180, "output": "coast.kmz"}, ["exposure", "coast.json", "--swell", "180", "--output", "coast.kmz"]),
     ],
 )
@@ -84,7 +96,7 @@ def test_json_rpc_lifecycle_and_tool_call():
     messages = [json.loads(line) for line in outgoing.getvalue().splitlines()]
     assert [message["id"] for message in messages] == [1, 2, 3]
     assert messages[0]["result"]["protocolVersion"] == mcp.PROTOCOL_VERSION
-    assert len(messages[1]["result"]["tools"]) == 7
+    assert len(messages[1]["result"]["tools"]) == 17
     assert messages[2]["result"]["structuredContent"]["provenance"]["status"] == "ok"
 
 

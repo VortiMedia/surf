@@ -72,7 +72,7 @@ from .sessions import (
     parse_time,
 )
 from .sources import Archive, Http, Reading, Window
-from .spots import Derived, Spot, SpotBook, save_spots
+from .spots import Derived, Spot, SpotBook, data_dir, save_spots
 from .tides import TideAdapter
 from .terrain import (
     TerrainScan,
@@ -1175,7 +1175,10 @@ def cmd_watch(args: argparse.Namespace, console: Console) -> int:
 
     try:
         setup = store.load()
-        snapshots = SnapshotStore(args.snapshots) if args.snapshots else None
+        if not args.model_run:
+            console.warn("watch run requires --model-run so scheduled snapshots keep real provenance")
+            return EXIT_USAGE
+        snapshots = SnapshotStore(args.snapshots or (data_dir() / "cache" / "forecast-snapshots.jsonl"))
         result = run_watch(
             setup,
             service=console.service(),
@@ -1194,8 +1197,10 @@ def cmd_watch(args: argparse.Namespace, console: Console) -> int:
             for evidence in alert.evidence:
                 console.say(f"    evidence: {evidence}")
         else:
-            detail = alert.reason or "; ".join(alert.dropped) or "no match"
+            detail = alert.reason or "no match"
             console.say(f"  no alert {alert.spot}: {detail}")
+            for item in alert.dropped:
+                console.say(f"    dropped: {item}")
     for item in result.dropped:
         console.say(f"  dropped: {item}")
     console.say(f"  snapshots written: {result.snapshots_written}")

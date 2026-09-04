@@ -45,7 +45,7 @@ a rating back.
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
 | `surf snapshot issue` / `surf snapshot verify` | Freeze a forecast JSONL record before `valid_at`, then join it later to explicit buoy observations and session rows. Snapshots are append-only; errors stay unscored when observations are missing or quantities do not match. |
-| `surf watch save` / `surf watch run` | Save structured swell, wind, tide, model-agreement and lead-time conditions, then run the same forecast/scoring path on a schedule. Alerts name the evidence; degraded sources suppress confident alerts. |
+| `surf watch save` / `surf watch run --model-run RUN` | Save structured swell, wind, tide, model-agreement and lead-time conditions, then run the same forecast/scoring path on a schedule. Successful scheduled runs always freeze snapshots; alerts name the evidence, and degraded sources suppress confident alerts. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
 ## Band floors
@@ -73,11 +73,10 @@ unreachable, unsafe or illegal option may be hard-filtered.
 
 ## MCP surface
 
-Run `surf-mcp` as a stdio MCP server. Its `tools/list` names map directly to
-the commands above: `sources`, `call`, `spot`, `calibrate`, `geometry`,
-`session_add` (`surf session add`) and `exposure`. The server only translates
-tool arguments into the existing CLI entry point; it does not fetch or score on
-its own. `tools/call` returns the same human text plus a structured provenance
+Run `surf-mcp` as a stdio MCP server. Its `tools/list` maps every command above
+to the same CLI entry point; compound commands use names such as `session_add`,
+`snapshot_issue`, and `watch_run`. The server only translates tool arguments;
+it does not fetch or score on its own. `tools/call` returns the same human text plus a structured provenance
 receipt for every source attempt: `source`, `status`, `fetched_at`,
 `model_run`, `confidence`, and `dropped`. A degraded source remains a
 successful tool answer (`status: degraded`) and names what it dropped. A
