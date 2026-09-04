@@ -32,7 +32,9 @@ from .score import Components
 from .sessions import (
     COLUMNS as SESSION_COLUMNS,
     SessionFileError,
+    audit_sessions,
     default_sessions_path,
+    load_sessions,
     parse_date,
     parse_rating,
     parse_time,
@@ -487,6 +489,7 @@ def cmd_calibrate(args: argparse.Namespace, console: Console) -> int:
         archive=archive,
         book=console.spots(),
         cache=ConditionCache(),
+        sessions=load_sessions(args.path, book=console.spots()) if args.path else None,
         refresh=args.refresh,
         matrix=not args.no_matrix,
     )
@@ -497,6 +500,69 @@ def cmd_calibrate(args: argparse.Namespace, console: Console) -> int:
     if not report.passed:
         console.warn(f"{len(report.failed)} check(s) failed")
         return EXIT_FAILED
+    return EXIT_OK
+
+
+def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
+    """Canonicalize spot ids and make only evidence-backed log repairs."""
+    archive: Archive | None = console.archive
+    if archive is None and args.online:
+        archive = OpenMeteoArchive(Http())
+    years = None
+    if args.years:
+        try:
+            years = tuple(int(part.strip()) for part in args.years.split(",") if part.strip())
+        except ValueError:
+            console.warn("session audit: --years must be comma-separated integers")
+            return EXIT_USAGE
+    try:
+        report = audit_sessions(
+            args.path,
+            book=console.spots(),
+            archive=archive,
+            years=years,
+            write=not args.dry_run,
+        )
+    except SessionFileError as exc:
+        console.warn(f"session audit: {exc}")
+        return EXIT_FAILED
+
+    console.say("SESSION AUDIT")
+    console.say(
+        f"resolvable before: {report.before_resolvable}  "
+        f"after: {report.after_resolvable}"
+    )
+    if report.repairs:
+        console.say("repairs")
+        for repair in report.repairs:
+            console.say(
+                f"  row {repair.row} {repair.field}: {repair.before!r} -> "
+                f"{repair.after!r} ({repair.basis})"
+            )
+    else:
+        console.say("repairs: none")
+    if report.questions:
+        console.say("questions")
+        seen: set[tuple[str, str, str]] = set()
+        for question in report.questions:
+            key = (question.raw_date, question.raw_spot, question.question)
+            if key in seen:
+                continue
+            seen.add(key)
+            console.say(
+                f"  row {question.row} {question.raw_date}\t{question.raw_spot}: "
+                f"{question.question}"
+            )
+    else:
+        console.say("questions: none")
+    if report.wrote:
+        console.say(f"wrote {args.path or default_sessions_path()}")
+    elif args.dry_run:
+        console.say("(dry run: nothing written)")
+    elif not report.repairs:
+        console.say("(nothing written: no repairs were proven)")
+    if archive is None:
+        console.say("(offline: date recovery requires --online and an archive)")
     return EXIT_OK
 
 
@@ -579,9 +645,14 @@ def cmd_geometry(args: argparse.Namespace, console: Console) -> int:
 
 
 def cmd_session(args: argparse.Namespace, console: Console) -> int:
-    """A raw append, not a load-and-save: rewriting the file through the parser
-    would drop its comment header.
-    """
+    """Append a raw row or run the mechanical audit."""
+    if args.action == "audit":
+        return cmd_session_audit(args, console)
+    # A raw append, not a load-and-save: rewriting the file through the parser
+    # would drop its comment header.
+    if args.date is None or args.spot is None:
+        console.warn("session add requires --date and --spot")
+        return EXIT_USAGE
     path = Path(args.path) if args.path else default_sessions_path()
     try:
         on = _check_date(args.date)
@@ -667,6 +738,7 @@ def build_parser() -> argparse.ArgumentParser:
     calibrate_cmd.add_argument(
         "--no-matrix", action="store_true", help="score without the response matrix"
     )
+    calibrate_cmd.add_argument("--path", default=None, help="session file to calibrate")
     calibrate_cmd.set_defaults(run=cmd_calibrate)
 
     geometry = sub.add_parser("geometry", help="derive per-spot geometry from the sea floor")
@@ -675,14 +747,17 @@ def build_parser() -> argparse.ArgumentParser:
     geometry.add_argument("--refresh", action="store_true", help="ignore the geometry cache")
     geometry.set_defaults(run=cmd_geometry)
 
-    session = sub.add_parser("session", help="append a row to the session log")
-    session.add_argument("action", choices=("add",))
-    session.add_argument("--date", required=True, help="YYYY-MM-DD, YYYY-MM-DD? or ????-MM-DD")
-    session.add_argument("--spot", required=True, help="how you name the spot; resolved by alias")
+    session = sub.add_parser("session", help="append or audit the session log")
+    session.add_argument("action", choices=("add", "audit"))
+    session.add_argument("--date", default=None, help="YYYY-MM-DD, YYYY-MM-DD? or ????-MM-DD (add)")
+    session.add_argument("--spot", default=None, help="how you name the spot; resolved by alias (add)")
     session.add_argument("--time", default="", help="HH:MM, a word like 'early', or empty")
     session.add_argument("--rating", default="", help="1-5, your own call. Empty means unrated")
     session.add_argument("--notes", default="", help="what it was actually like")
     session.add_argument("--path", default=None, help="session file to append to")
+    session.add_argument("--online", action="store_true", help="reach the archive for date recovery (audit)")
+    session.add_argument("--years", default=None, help="candidate years, comma-separated (audit)")
+    session.add_argument("--dry-run", action="store_true", help="report repairs without writing (audit)")
     session.set_defaults(run=cmd_session)
 
     exposure = sub.add_parser(

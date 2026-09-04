@@ -38,6 +38,7 @@ a rating back.
 | `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component. |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`. |
+| `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
 ## MCP surface
@@ -184,6 +185,14 @@ Run `surf sources` and report the statuses rather than guessing at the cause.
 Never fill a hole with an estimate. A skipped bathymetry read means BARREL falls
 back to the steepness proxy and the call says which basis it used — not that a
 slope gets invented.
+
+`surf session audit` applies the same rule to the ground-truth log. It writes
+spot ids from `data/spots.tsv`, reports the resolvable count before and after,
+and records the repair basis in the row note. A yearless date is written only
+when the candidate years contain exactly one day with archived waves; multiple
+candidates or missing data remain a `NEEDS YEAR` question. It never guesses a
+year, spot, rating or wave quality. Run `surf calibrate --path F` on an audited
+non-default log.
 
 ## Output
 
