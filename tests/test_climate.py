@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from dataclasses import replace
 
 from surf import cli
 from surf.climate import (
@@ -71,6 +72,14 @@ def test_overlap_rejects_a_swell_only_season() -> None:
     assert result.fraction_years == 0.0
 
 
+def test_calm_wind_passes_and_stronger_wind_uses_the_sixty_degree_rule() -> None:
+    calm = ClimateSample(datetime(2024, 7, 1, tzinfo=UTC), 1.5, 12.0, 180.0, 0.5, 180.0)
+    crossshore = ClimateSample(datetime(2024, 7, 1, tzinfo=UTC), 1.5, 12.0, 180.0, 8.0, 50.0)
+    onshore = ClimateSample(datetime(2024, 7, 1, tzinfo=UTC), 1.5, 12.0, 180.0, 8.0, 100.0)
+    result = overlap(spot(), (calm, crossshore, onshore), date(2024, 7, 1), date(2024, 7, 1))
+    assert result.overlap_hours == 2
+
+
 def test_cache_round_trip_preserves_source_status_and_fetch_time(tmp_path) -> None:
     s = spot()
     samples = (sample(datetime(2024, 1, 1, tzinfo=UTC)),)
@@ -103,10 +112,11 @@ class FakeClimate:
 def test_cli_climate_runs_each_zone_cell_and_reports_rejection(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("SURF_DATA", str(tmp_path))
     s = spot()
+    same_cell = replace(s, id="test-2", name="Test 2")
     source = FakeClimate({s.id: (
         sample(datetime(2024, 7, 1, 0, tzinfo=UTC), wind_direction=180.0),
     )})
-    console = cli.Console(book=SpotBook((s,)), climate_source=source)
+    console = cli.Console(book=SpotBook((s, same_cell)), climate_source=source)
     code = cli.main(
         ["climate", "--zone", "test-zone", "--start", "2024-07-01", "--end", "2024-07-31", "--refresh"],
         console=console,
@@ -121,14 +131,16 @@ def test_cli_climate_runs_each_zone_cell_and_reports_rejection(tmp_path, monkeyp
 
 
 def test_open_meteo_climate_only_joins_exact_matching_timestamps() -> None:
+    calls = []
     class Http:
         def get_json(self, source, url, params):
+            calls.append((url, params))
             if "marine-api" in url:
                 return {"hourly": {
                     "time": ["2024-01-01T00:00", "2024-01-01T01:00"],
-                    "swell_wave_height": [1.5, 1.5],
-                    "swell_wave_period": [12, 12],
-                    "swell_wave_direction": [180, 180],
+                    "wave_height": [1.5, 1.5],
+                    "wave_period": [12, 12],
+                    "wave_direction": [180, 180],
                 }}
             return {"hourly": {
                 "time": ["2024-01-01T01:00", "2024-01-01T02:00"],
@@ -137,5 +149,7 @@ def test_open_meteo_climate_only_joins_exact_matching_timestamps() -> None:
             }}
 
     reading = OpenMeteoClimate(Http()).cell(spot(), date(2024, 1, 1), date(2024, 1, 1))
-    assert reading.status == "ok"
+    assert reading.status == "degraded"
+    assert calls[0][1]["models"] == "era5_ocean"
+    assert "total wave" in reading.dropped[0]
     assert [row.time for row in reading.value] == [datetime(2024, 1, 1, 1, tzinfo=UTC)]

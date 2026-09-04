@@ -18,9 +18,8 @@ from .spots import Spot, SpotBook, data_dir
 
 MIN_SWELL_HEIGHT_M = 1.0
 MIN_SWELL_PERIOD_S = 10.0
-MIN_WIND_SPEED_MPS = 4.0
-MAX_WIND_SPEED_MPS = 10.3
-MAX_OFFSHORE_ANGLE_DEG = 25.0
+CALM_WIND_MPS = 12.0 / 3.6
+MAX_OFFSHORE_ANGLE_DEG = 60.0
 EVENT_GAP_HOURS = 6.0
 
 
@@ -119,9 +118,12 @@ def _is_overlap(sample: ClimateSample, spot: Spot) -> bool:
         return False
     # Wind direction is where it comes FROM; the offshore bearing is also a
     # from-direction, so compare those directly.
-    if not MIN_WIND_SPEED_MPS <= sample.wind_speed_mps <= MAX_WIND_SPEED_MPS:
-        return False
-    return _angle(sample.wind_direction_deg, spot.offshore_wind_bearing) <= MAX_OFFSHORE_ANGLE_DEG
+    # The clean rule is deliberately an OR: calm wind is usable regardless of
+    # direction, while stronger wind must be within 60 degrees of offshore.
+    return (
+        sample.wind_speed_mps <= CALM_WIND_MPS
+        or _angle(sample.wind_direction_deg, spot.offshore_wind_bearing) <= MAX_OFFSHORE_ANGLE_DEG
+    )
 
 
 def overlap(spot: Spot, samples: tuple[ClimateSample, ...], start: date, end: date) -> CellOverlap:
@@ -252,15 +254,17 @@ class OpenMeteoClimate:
     def cell(self, spot: Spot, start: date, end: date) -> Reading[tuple[ClimateSample, ...]]:
         fetched = now()
         try:
+            wave_params = _archive_params(
+                spot,
+                start,
+                end,
+                ("wave_height", "wave_period", "wave_direction"),
+            )
+            wave_params["models"] = "era5_ocean"
             waves = self.http.get_json(
                 self.name,
                 MARINE_URL,
-                _archive_params(
-                    spot,
-                    start,
-                    end,
-                    ("swell_wave_height", "swell_wave_period", "swell_wave_direction"),
-                ),
+                wave_params,
             )
             winds = self.http.get_json(
                 self.name,
@@ -285,7 +289,7 @@ class OpenMeteoClimate:
         wave_times = [_parse_time(t) for t in (wh.get("time") or [])]
         wind_times = [_parse_time(t) for t in (vh.get("time") or [])]
         wave_cols = {key: _column(wh, key, len(wave_times)) for key in (
-            "swell_wave_height", "swell_wave_period", "swell_wave_direction"
+            "wave_height", "wave_period", "wave_direction"
         )}
         wind_cols = {key: _column(vh, key, len(wind_times)) for key in (
             "wind_speed_10m", "wind_direction_10m"
@@ -298,15 +302,27 @@ class OpenMeteoClimate:
                 continue
             samples.append(ClimateSample(
                 time=time,
-                swell_height_m=wave_cols["swell_wave_height"][i],
-                swell_period_s=wave_cols["swell_wave_period"][i],
-                swell_direction_deg=wave_cols["swell_wave_direction"][i],
+                swell_height_m=wave_cols["wave_height"][i],
+                swell_period_s=wave_cols["wave_period"][i],
+                swell_direction_deg=wave_cols["wave_direction"][i],
                 wind_speed_mps=wind_cols["wind_speed_10m"][j],
                 wind_direction_deg=wind_cols["wind_direction_10m"][j],
             ))
-        dropped = () if samples else ("no shared wave/wind timestamps",)
-        status = "ok" if samples else "degraded"
-        return Reading(tuple(samples), self.name, status, fetched, note=f"{len(samples)} shared UTC hours", dropped=dropped)
+        dropped = ["ERA5 Ocean total wave fields used as a swell proxy"]
+        if not samples:
+            dropped.append("no shared wave/wind timestamps")
+        return Reading(
+            tuple(samples), self.name, "degraded", fetched,
+            note=f"{len(samples)} shared UTC hours; model=era5_ocean",
+            dropped=tuple(dropped),
+        )
+
+
+def climate_cell_key(spot: Spot) -> tuple[float, float, float, float]:
+    """Coordinates rounded to the coarse archive grid used for de-duplication."""
+    return tuple(round(value, 2) for value in (
+        spot.offshore_lat, spot.offshore_lon, spot.lat, spot.lon
+    ))  # type: ignore[return-value]
 
 
 def build_result(

@@ -14,7 +14,16 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .bathymetry import NceiBathymetry
 from .bands import bands_from_log
 from .calibrate import ConditionCache, calibrate
-from .climate import ClimateResult, ClimateSource, OpenMeteoClimate, build_result, cache_path, load_cache, save_cache
+from .climate import (
+    ClimateResult,
+    ClimateSource,
+    OpenMeteoClimate,
+    build_result,
+    cache_path,
+    climate_cell_key,
+    load_cache,
+    save_cache,
+)
 from .call import (
     HEADS_UP_DAYS,
     SHARP_DAYS,
@@ -649,8 +658,13 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
     statuses: list[str] = []
     fetched_at = console.clock()
     dropped: list[str] = []
+    by_cell: dict[tuple[float, float, float, float], Reading[Any]] = {}
     for spot in spots:
-        reading = source.cell(spot, start, end)
+        key = climate_cell_key(spot)
+        reading = by_cell.get(key)
+        if reading is None:
+            reading = source.cell(spot, start, end)
+            by_cell[key] = reading
         statuses.append(reading.status)
         fetched_at = max(fetched_at, reading.fetched_at)
         if reading.value is not None:
@@ -663,7 +677,7 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
     result = build_result(
         args.zone, spots, samples, start, end,
         source=source.name, status=status, fetched_at=fetched_at,
-        note=f"{len(spots)} zone cells; wave and wind joined on exact UTC timestamps",
+        note=f"{len(spots)} zone cells, {len(by_cell)} archive cells; wave and wind joined on exact UTC timestamps",
         dropped=tuple(dropped),
     )
     save_cache(path, result, samples)
