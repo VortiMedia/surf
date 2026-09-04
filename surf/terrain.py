@@ -38,6 +38,15 @@ class TerrainObject:
 
 
 @dataclass(frozen=True)
+class TerrainLocation:
+    """A scan cell, not a promoted spot row."""
+
+    id: str
+    lat: float
+    lon: float
+
+
+@dataclass(frozen=True)
 class TerrainScan:
     spot_id: str
     source: str
@@ -53,7 +62,7 @@ class TerrainScan:
 class TerrainSource(Protocol):
     name: str
 
-    def grid(self, spot: Spot, *, radius_m: float, spacing_m: float, rows: int, cols: int) -> Reading[BathymetryGrid]: ...
+    def grid(self, spot: TerrainLocation, *, radius_m: float, spacing_m: float, rows: int, cols: int) -> Reading[BathymetryGrid]: ...
 
 
 def _elevations(grid: BathymetryGrid) -> list[list[float | None]]:
@@ -169,9 +178,32 @@ def scan_grid(spot: Spot, grid: BathymetryGrid) -> TerrainScan:
     )
 
 
-def terrain_cache_path(zone: str, root: Path | None = None) -> Path:
+def bbox_locations(zone: str, bbox: tuple[float, float, float, float], step_deg: float = 0.05) -> tuple[TerrainLocation, ...]:
+    """Tile an explicit bbox; no existing spot is used as a scan seed."""
+    min_lat, min_lon, max_lat, max_lon = bbox
+    if not (min_lat < max_lat and min_lon < max_lon):
+        raise ValueError("bbox must be min_lat,min_lon,max_lat,max_lon")
+    if step_deg <= 0:
+        raise ValueError("bbox step must be positive")
+    locations: list[TerrainLocation] = []
+    lat = min_lat + step_deg / 2
+    index = 0
+    while lat < max_lat:
+        lon = min_lon + step_deg / 2
+        while lon < max_lon:
+            locations.append(TerrainLocation(f"{zone}-cell-{index}", lat, lon))
+            index += 1
+            lon += step_deg
+        lat += step_deg
+    return tuple(locations)
+
+
+def terrain_cache_path(zone: str, bbox: tuple[float, float, float, float] | None = None, root: Path | None = None) -> Path:
     safe = re.sub(r"[^a-z0-9_-]+", "-", zone.casefold()).strip("-") or "zone"
-    return (root or (data_dir() / "climate")) / f"terrain-{safe}.json"
+    suffix = ""
+    if bbox is not None:
+        suffix = "-" + "-".join(f"{value:.4f}" for value in bbox)
+    return (root or (data_dir() / "climate")) / f"terrain-{safe}{suffix}.json"
 
 
 def save_terrain_cache(path: Path, zone: str, scans: tuple[TerrainScan, ...], source: str, status: str, fetched_at: datetime) -> None:
@@ -188,12 +220,10 @@ def save_terrain_cache(path: Path, zone: str, scans: tuple[TerrainScan, ...], so
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def load_terrain_cache(path: Path, book: SpotBook) -> tuple[str, str, datetime, tuple[TerrainScan, ...]]:
+def load_terrain_cache(path: Path, book: SpotBook | None = None) -> tuple[str, str, datetime, tuple[TerrainScan, ...]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     scans: list[TerrainScan] = []
     for item in raw.get("scans", []):
-        if book.get(item["spot_id"]) is None:
-            continue
         candidates = tuple(TerrainObject(**candidate) for candidate in item.get("candidates", []))
         scans.append(TerrainScan(
             item["spot_id"], raw["source"], item["status"], datetime.fromisoformat(item["fetched_at"]),

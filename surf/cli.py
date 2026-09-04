@@ -56,7 +56,15 @@ from .sessions import (
 from .sources import Archive, Http, Reading, Window
 from .spots import Derived, Spot, SpotBook, save_spots
 from .tides import TideAdapter
-from .terrain import TerrainScan, TerrainSource, load_terrain_cache, save_terrain_cache, scan_grid, terrain_cache_path
+from .terrain import (
+    TerrainScan,
+    TerrainSource,
+    bbox_locations,
+    load_terrain_cache,
+    save_terrain_cache,
+    scan_grid,
+    terrain_cache_path,
+)
 from .waves import Forecast, TidePoint, WaveField, m_to_ft, mps_to_kt
 
 PROGRAM = "surf"
@@ -747,31 +755,32 @@ def _render_terrain(zone: str, source: str, status: str, fetched_at: datetime, s
 
 def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
     """Scan feature-resolving bathymetry and propose terrain objects."""
-    book = console.spots()
-    spots = book.in_zone(args.zone)
-    if not spots:
-        console.warn(f"no spots in zone {args.zone!r}")
-        return EXIT_FAILED
-    path = terrain_cache_path(args.zone)
+    bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
+    if len(bbox) != 4:
+        raise ValueError("--bbox must be min_lat,min_lon,max_lat,max_lon")
+    locations = bbox_locations(args.zone, bbox, step_deg=args.step)
+    if not locations:
+        raise ValueError("--bbox and --step produce no scan cells")
+    path = terrain_cache_path(args.zone, bbox)
     if path.exists() and not args.refresh:
-        zone, status, fetched_at, scans = load_terrain_cache(path, book)
+        zone, status, fetched_at, scans = load_terrain_cache(path)
         _render_terrain(zone, "ncei", status, fetched_at, scans, console)
         return EXIT_OK
     source = console.terrain_source or NceiBathymetry(Http())
     scans: list[TerrainScan] = []
     status = "ok"
     fetched_at = console.clock()
-    for spot in spots:
-        reading = source.grid(spot, radius_m=300.0, spacing_m=50.0, rows=7, cols=7)
+    for location in locations:
+        reading = source.grid(location, radius_m=300.0, spacing_m=50.0, rows=7, cols=7)
         fetched_at = max(fetched_at, reading.fetched_at)
         if reading.value is None:
             status = "failed" if reading.status in ("failed", "skipped") else "degraded"
-            scans.append(TerrainScan(spot.id, reading.source, reading.status, reading.fetched_at, None, "unknown", note=reading.note, dropped=reading.dropped))
+            scans.append(TerrainScan(location.id, reading.source, reading.status, reading.fetched_at, None, "unknown", note=reading.note, dropped=reading.dropped))
             continue
         if reading.status != "ok":
             status = "degraded"
-        scan = scan_grid(spot, reading.value)
-        scans.append(TerrainScan(spot.id, reading.source, reading.status if reading.status != "ok" else scan.status, reading.fetched_at, scan.resolution_m, scan.vertical_datum, scan.candidates, scan.note, reading.dropped))
+        scan = scan_grid(location, reading.value)
+        scans.append(TerrainScan(location.id, reading.source, reading.status if reading.status != "ok" else scan.status, reading.fetched_at, scan.resolution_m, scan.vertical_datum, scan.candidates, scan.note, reading.dropped))
     scans_tuple = tuple(scans)
     save_terrain_cache(path, args.zone, scans_tuple, source.name, status, fetched_at)
     _render_terrain(args.zone, source.name, status, fetched_at, scans_tuple, console)
@@ -991,7 +1000,9 @@ def build_parser() -> argparse.ArgumentParser:
     terrain = sub.add_parser(
         "terrain", help="scan zone bathymetry for stable terrain-object candidates"
     )
-    terrain.add_argument("--zone", required=True, help="exact zone identity from data/spots.tsv")
+    terrain.add_argument("--zone", required=True, help="zone label for the derived scan")
+    terrain.add_argument("--bbox", required=True, help="min_lat,min_lon,max_lat,max_lon to scan")
+    terrain.add_argument("--step", type=float, default=0.05, help="scan-cell spacing in degrees")
     terrain.add_argument("--refresh", action="store_true", help="rebuild the derived terrain cache")
     terrain.set_defaults(run=cmd_terrain)
 

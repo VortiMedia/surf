@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from dataclasses import replace
 
 from surf import cli
 from surf.bathymetry import BathymetryGrid, Sample
@@ -58,16 +57,19 @@ def test_coarse_grid_reports_no_gradient_without_interpolation() -> None:
 
 def test_cli_reports_candidates_as_terrain_objects_and_caches_them(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("SURF_DATA", str(tmp_path))
-    candidate = replace(spot(), zone="test-zone")
 
     class Source:
         name = "fixture-bathymetry"
 
+        calls = []
+
         def grid(self, spot, *, radius_m, spacing_m, rows, cols):
+            self.calls.append(spot)
             return Reading(grid(), self.name, "ok", datetime(2026, 9, 3, tzinfo=UTC))
 
-    console = cli.Console(book=SpotBook((candidate,)), terrain_source=Source())
-    code = cli.main(["terrain", "--zone", "test-zone", "--refresh"], console=console)
+    source = Source()
+    console = cli.Console(book=SpotBook(()), terrain_source=source)
+    code = cli.main(["terrain", "--zone", "test-zone", "--bbox", "41.0,-71.1,41.1,-71.0", "--step", "0.1", "--refresh"], console=console)
     out = capsys.readouterr().out
     assert code == cli.EXIT_OK
     assert "terrain object" in out
@@ -75,4 +77,6 @@ def test_cli_reports_candidates_as_terrain_objects_and_caches_them(tmp_path, mon
     assert "unknown datum (fixture)" in out
     assert "not a surf spot" in out
     assert "41." in out and "-70." in out
-    assert (tmp_path / "climate" / "terrain-test-zone.json").exists()
+    assert source.calls and source.calls[0].id == "test-zone-cell-0"
+    assert source.calls[0].lat == 41.05 and source.calls[0].lon == -71.05
+    assert (tmp_path / "climate" / "terrain-test-zone-41.0000--71.1000-41.1000--71.0000.json").exists()

@@ -36,9 +36,9 @@ a rating back.
 | `surf call [--region R] [--days N]` | The product. One recommendation across the region and window. |
 | `surf spot <name>` | One spot in depth: components, geometry, provenance, what is missing. |
 | `surf climate --zone Z --start YYYY-MM-DD --end YYYY-MM-DD` | Measure historical swell/wind overlap per zone cell; uses the derived cache in `data/climate/`. Add `--refresh` to rebuild it. |
-| `surf terrain --zone Z` | Scan feature-resolving bathymetry for stable terrain-object candidates; uses `data/climate/` and never promotes a candidate to a surf spot automatically. Add `--refresh` to rebuild it. |
+| `surf terrain --zone Z --bbox min_lat,min_lon,max_lat,max_lon` | Scan an explicit zone grid of feature-resolving bathymetry for stable terrain-object candidates; uses `data/climate/` and never promotes a candidate to a surf spot automatically. Add `--refresh` to rebuild it. |
 | `surf lexicon [phrase]` | Show the physical filters behind session language, their support count, and whether each is measured, conventional, or contradicted. `surf call --want phrase` applies the same filters. |
-| `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, and print each scored row's regime with the component results. |
+| `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component, and show each scored row's regime. |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
