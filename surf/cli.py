@@ -711,6 +711,7 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
     path = cache_path(args.zone, start, end)
     if path.exists() and not args.refresh:
         result = load_cache(path, book)
+        console.record(Reading(result, result.source, result.status, result.fetched_at, note=result.note, dropped=result.dropped))
         _render_climate(result, console)
         return EXIT_OK if result.status in ("ok", "degraded") else EXIT_FAILED
 
@@ -742,6 +743,7 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
         dropped=tuple(dropped),
     )
     save_cache(path, result, samples)
+    console.record(Reading(result, result.source, result.status, result.fetched_at, note=result.note, dropped=result.dropped))
     _render_climate(result, console)
     return EXIT_FAILED if result.status == "failed" else EXIT_OK
 
@@ -784,7 +786,10 @@ def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
     path = terrain_cache_path(args.zone, bbox)
     if path.exists() and not args.refresh:
         zone, status, fetched_at, scans = load_terrain_cache(path)
-        _render_terrain(zone, "ncei", status, fetched_at, scans, console)
+        source_name = scans[0].source if scans else "ncei"
+        dropped = tuple(item for scan in scans for item in scan.dropped)
+        console.record(Reading(scans, source_name, status, fetched_at, dropped=dropped))
+        _render_terrain(zone, source_name, status, fetched_at, scans, console)
         return EXIT_OK
     source = console.terrain_source or NceiBathymetry(Http())
     scans: list[TerrainScan] = []
@@ -803,6 +808,7 @@ def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
         scans.append(TerrainScan(location.id, reading.source, reading.status if reading.status != "ok" else scan.status, reading.fetched_at, scan.resolution_m, scan.vertical_datum, scan.candidates, scan.note, reading.dropped))
     scans_tuple = tuple(scans)
     save_terrain_cache(path, args.zone, scans_tuple, source.name, status, fetched_at)
+    console.record(Reading(scans_tuple, source.name, status, fetched_at, dropped=tuple(item for scan in scans_tuple for item in scan.dropped)))
     _render_terrain(args.zone, source.name, status, fetched_at, scans_tuple, console)
     return EXIT_FAILED if status == "failed" else EXIT_OK
 
@@ -819,6 +825,7 @@ def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     _, _, _, scans = load_terrain_cache(terrain_path)
     frames = load_frames(Path(args.frames))
     screen = screen_candidates(scans, frames, args.zone, console.clock())
+    console.record(Reading(screen, screen.source, screen.status, screen.fetched_at, note=screen.note, dropped=screen.dropped))
     path = imagery_cache_path(args.zone, bbox)
     save_screen(path, screen)
     console.say(f"IMAGERY  {args.zone}")
@@ -855,6 +862,7 @@ def cmd_wave_state(args: argparse.Namespace, console: Console) -> int:
     static = load_screen(static_path)
     frames = load_frames(Path(args.frames))
     screen = screen_wave_state(static, frames, args.zone, console.clock())
+    console.record(Reading(screen, screen.source, screen.status, screen.fetched_at, note=screen.note, dropped=screen.dropped))
     path = wave_state_cache_path(args.zone, bbox)
     save_wave_state(path, screen)
     console.say(f"WAVE STATE  {args.zone}")
@@ -1126,6 +1134,7 @@ def cmd_snapshot(args: argparse.Namespace, console: Console) -> int:
     start = issued_at.replace(minute=0, second=0, microsecond=0)
     hours = int((valid_at - start).total_seconds() // 3600) + 1
     forecast = console.service().outlook(spot, Window(start=start, hours=hours))
+    console.record(*forecast.readings)
     hour = forecast.at(valid_at)
     if hour is None:
         console.warn(f"forecast has no hour at {valid_at.isoformat()}")
@@ -1187,6 +1196,7 @@ def cmd_watch(args: argparse.Namespace, console: Console) -> int:
             snapshot_store=snapshots,
             model_run=args.model_run,
         )
+        console.record(*result.readings)
     except (WatchError, SnapshotError) as exc:
         console.warn(f"watch run: {exc}")
         return EXIT_FAILED

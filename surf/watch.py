@@ -18,7 +18,7 @@ from .forecast import Hour, SpotForecast
 from .response import Response
 from .score import reference_field, score_hour
 from .snapshots import SnapshotStore, size_band, snapshot_from_hour
-from .sources import Window
+from .sources import Reading, Window
 from .spots import Spot, SpotBook
 
 
@@ -231,6 +231,7 @@ class WatchRun:
     alerts: tuple[Alert, ...]
     snapshots_written: int = 0
     dropped: tuple[str, ...] = ()
+    readings: tuple[Reading[Any], ...] = ()
 
 
 def _direction_contains(bounds: Range, value: float | None) -> bool:
@@ -338,6 +339,7 @@ def run_watch(
     alerts: list[Alert] = []
     dropped: list[str] = []
     snapshots_written = 0
+    readings: list[Reading[Any]] = []
     for spot_name in setup.spots:
         spot = book.resolve(spot_name)
         if spot is None:
@@ -346,6 +348,7 @@ def run_watch(
         forecast = service.outlook(
             spot, Window(now.replace(minute=0, second=0, microsecond=0), hours)
         )
+        readings.extend(forecast.readings)
         alerts.append(evaluate_forecast(setup, forecast, now=now))
         if snapshot_store is None or not model_run:
             if snapshot_store is not None and not model_run:
@@ -366,4 +369,4 @@ def run_watch(
                 dropped.append(f"{spot.id} {hour.at.isoformat()}: snapshot not written: {exc}")
             else:
                 snapshots_written += 1
-    return WatchRun(tuple(alerts), snapshots_written, tuple(dropped))
+    return WatchRun(tuple(alerts), snapshots_written, tuple(dropped), tuple(readings))

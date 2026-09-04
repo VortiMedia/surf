@@ -93,6 +93,7 @@ def test_run_watch_uses_forecast_path_fires_with_evidence_and_freezes_snapshots(
     )
     assert service.calls and service.calls[0][0] == SPOT.id
     assert result.alerts[0].fired is True
+    assert result.readings == forecast().readings
     assert "offshore Hs" in " ".join(result.alerts[0].evidence)
     assert result.snapshots_written == len(snapshots.read())
     assert result.snapshots_written > 0

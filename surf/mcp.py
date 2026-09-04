@@ -386,7 +386,7 @@ def _provenance(readings: Iterable[Reading[Any]], code: int) -> dict[str, Any]:
     statuses = [record["status"] for record in records]
     if code != cli.EXIT_OK:
         status = "skipped" if statuses and all(item == "skipped" for item in statuses) else "failed"
-    elif any(item in ("failed", "skipped") for item in statuses) or any(record["dropped"] for record in records):
+    elif any(item != "ok" for item in statuses) or any(record["dropped"] for record in records):
         status = "degraded"
     else:
         status = "ok"

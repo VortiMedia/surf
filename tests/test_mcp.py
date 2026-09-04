@@ -78,6 +78,16 @@ def test_degraded_tool_answer_is_not_a_transport_error():
     assert result["structuredContent"]["provenance"]["status"] == "degraded"
 
 
+def test_degraded_receipt_without_dropped_fields_stays_degraded():
+    def runner(argv, *, console):
+        console.record(Reading(True, "forecast", "degraded", NOW))
+        return 0
+
+    result = mcp.call_tool("sources", runner=runner)
+    assert result["isError"] is False
+    assert result["structuredContent"]["provenance"]["status"] == "degraded"
+
+
 def test_json_rpc_lifecycle_and_tool_call():
     incoming = io.StringIO("\n".join([
         json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
