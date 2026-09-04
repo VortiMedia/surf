@@ -40,6 +40,7 @@ a rating back.
 | `surf lexicon [phrase]` | Show the physical filters behind session language, their support count, and whether each is measured, conventional, or contradicted. `surf call --want phrase` applies the same filters. |
 | `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component, and show each scored row's regime. |
 | `surf imagery --zone Z --bbox min_lat,min_lon,max_lat,max_lon --frames manifest.json` | Screen terrain candidates with cloud-free, georeferenced imagery metadata. Reports static geometry measurements in metres as kept, rejected or unresolvable; it never reports wave state. Results use `data/imagery/` (gitignored). |
+| `surf wave-state --zone Z --bbox min_lat,min_lon,max_lat,max_lon --frames manifest.json` | On static-screen survivors only, measure wavelength from a clear, georeferenced, scaled frame and derive deep-water period. Reports visual inference separately from static geometry and distinguishes no clear pass, no swell and unresolvable scale. |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
@@ -301,3 +302,9 @@ resolution or frame cannot answer the geometry question; it is not a wave
 finding and is never silently changed into a rejection. Derived results live
 under gitignored `data/imagery/`; no image bytes or wave-state claims belong in
 this screen.
+
+`surf wave-state` is the separate dynamic screen. It refuses an unscaled or
+non-georeferenced frame and applies `L₀ = gT²/2π` only to a measured wavelength in
+metres. A clear frame must also be explicitly coincident with swell. The result
+is visual inference on the evidence ladder, never confirmation: `no_swell`,
+`no_clear_pass_coincident_with_swell` and `unresolvable` are different outcomes.

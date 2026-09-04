@@ -39,7 +39,16 @@ from .call import (
 from .forecast import ForecastService, Sources, SpotForecast
 from .evidence import default_evidence
 from .geometry import GeometryCache, beach_slope
-from .imagery import imagery_cache_path, load_frames, save_screen, screen_candidates
+from .imagery import (
+    imagery_cache_path,
+    load_frames,
+    load_screen,
+    save_screen,
+    save_wave_state,
+    screen_candidates,
+    screen_wave_state,
+    wave_state_cache_path,
+)
 from .lexicon import lexicon_from_log, resolve_phrase
 from .ndbc import NdbcObservations
 from .open_meteo import MarineModelSet, OpenMeteoArchive
@@ -833,6 +842,51 @@ def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
+def cmd_wave_state(args: argparse.Namespace, console: Console) -> int:
+    """Measure dynamic wave state from clear, coincident imagery only."""
+    bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
+    if len(bbox) != 4:
+        raise ValueError("--bbox must be min_lat,min_lon,max_lat,max_lon")
+    static_path = imagery_cache_path(args.zone, bbox)
+    if not static_path.exists():
+        console.warn(f"no static imagery cache for {args.zone!r}; run `surf imagery` first")
+        return EXIT_FAILED
+    static = load_screen(static_path)
+    frames = load_frames(Path(args.frames))
+    screen = screen_wave_state(static, frames, args.zone, console.clock())
+    path = wave_state_cache_path(args.zone, bbox)
+    save_wave_state(path, screen)
+    console.say(f"WAVE STATE  {args.zone}")
+    console.say(f"  source         {screen.source}:{screen.status}")
+    console.say(f"  fetched_at     {screen.fetched_at.isoformat()}")
+    console.say(f"  note           {screen.note}")
+    for dropped in screen.dropped:
+        console.say(f"  dropped        {dropped}")
+    for review in screen.reviews:
+        console.say()
+        console.say(f"  {review.candidate}  {review.decision}")
+        console.say(f"    coordinates   {review.lat:.5f}, {review.lon:.5f}")
+        console.say(f"    source        {review.source}")
+        console.say(f"    resolution    {review.resolution_m or 'unknown'} m")
+        console.say(f"    capture dates {', '.join(review.capture_dates) or 'none'}")
+        console.say(f"    frames        {', '.join(review.frames) or 'none'}")
+        if review.wavelength_m is not None:
+            console.say(f"    wavelength    {review.wavelength_m:g} m")
+        if review.period_s is not None:
+            console.say(f"    period        {review.period_s:.2f} s (L0 = gT^2/2pi)")
+        if review.whitewash_fraction is not None:
+            console.say(f"    whitewash     {review.whitewash_fraction:g}")
+        if review.wave_shape:
+            console.say(f"    wave shape    {review.wave_shape}")
+        console.say(f"    status        {review.status}")
+        console.say(f"    evidence      {review.evidence_level}")
+        if review.note:
+            console.say(f"    note          {review.note}")
+    if not screen.reviews:
+        console.say("  no static-screen survivors")
+    return EXIT_OK
+
+
 def _check_date(raw: str) -> str:
     """Accept exactly what the loader accepts: `2025-09-30`, `2025-09-30?` and
     `????-03-03`. Rejected here rather than written, because `parse_date` answers
@@ -1158,6 +1212,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON manifest of cloud-free, georeferenced imagery frames and metre measurements",
     )
     imagery.set_defaults(run=cmd_imagery)
+
+    wave_state = sub.add_parser(
+        "wave-state", help="measure dynamic wave state from coincident imagery"
+    )
+    wave_state.add_argument("--zone", required=True, help="zone label used by the imagery screen")
+    wave_state.add_argument("--bbox", required=True, help="min_lat,min_lon,max_lat,max_lon")
+    wave_state.add_argument(
+        "--frames", required=True,
+        help="JSON manifest with clear-pass, swell, scale and wavelength metadata",
+    )
+    wave_state.set_defaults(run=cmd_wave_state)
 
     calibrate_cmd = sub.add_parser("calibrate", help="check the model against the session log")
     calibrate_cmd.add_argument(
