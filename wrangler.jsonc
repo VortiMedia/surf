@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "surf-mcp",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-04",
+  "containers": [
+    {
+      "class_name": "SurfMcpContainer",
+      "image": "./Dockerfile",
+      "max_instances": 1,
+      "instance_type": "lite"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SURF_MCP_CONTAINER",
+        "class_name": "SurfMcpContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SurfMcpContainer"]
+    }
+  ]
+}
