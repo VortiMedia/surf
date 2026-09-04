@@ -179,12 +179,19 @@ class Console:
     archive: Archive | None = None
     clock: Callable[[], datetime] = _now
     surfline: bool | None = None
+    # Commands may leave their source receipt here for another transport (MCP,
+    # mobile) to return without re-running the calculation.
+    readings: list[Reading[Any]] = field(default_factory=list)
 
     def say(self, line: str = "") -> None:
         print(line, file=self.out)
 
     def warn(self, line: str) -> None:
         print(line, file=self.err)
+
+    def record(self, *readings: Reading[Any]) -> None:
+        """Keep the labelled source receipt alongside the human rendering."""
+        self.readings.extend(readings)
 
     def spots(self) -> SpotBook:
         if self.book is None:
@@ -226,6 +233,7 @@ def cmd_sources(args: argparse.Namespace, console: Console) -> int:
     """Preflight every source once: one call each, one line each."""
     service = console.service()
     health = service.health(refresh=True)
+    console.record(*health.values())
     if not health:
         console.warn("no sources configured")
         return EXIT_FAILED
@@ -358,6 +366,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
     console.say()
 
     outlooks, readings, _ = _fetch(console, spots, window)
+    console.record(*readings)
     reading = make_call(
         outlooks,
         now=now,
@@ -366,6 +375,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
         daylight_only=not args.any_hour,
         readings=readings,
     )
+    console.record(reading)
 
     call = reading.value
     if call is not None and heads_up <= sharp:
@@ -423,6 +433,7 @@ def cmd_spot(args: argparse.Namespace, console: Console) -> int:
     now = console.clock()
     window = Window(start=now.replace(minute=0, second=0, microsecond=0), hours=args.days * 24)
     forecast = console.service().outlook(spot, window)
+    console.record(*forecast.readings)
 
     console.say()
     console.say("sources")
@@ -546,6 +557,7 @@ def cmd_geometry(args: argparse.Namespace, console: Console) -> int:
             updated.append(spot)
             continue
         reading = beach_slope(spot, source, refresh=args.refresh)
+        console.record(reading)
         slope = reading.value.as_derived() if reading.value else None
         if slope is None:
             note = (reading.value.basis if reading.value else reading.note) or "no profile"

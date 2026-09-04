@@ -40,6 +40,19 @@ a rating back.
 | `surf session add` | Append a row to `data/sessions.tsv`. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
+## MCP surface
+
+Run `surf-mcp` as a stdio MCP server. Its `tools/list` names map directly to
+the commands above: `sources`, `call`, `spot`, `calibrate`, `geometry`,
+`session_add` (`surf session add`) and `exposure`. The server only translates
+tool arguments into the existing CLI entry point; it does not fetch or score on
+its own. `tools/call` returns the same human text plus a structured provenance
+receipt for every source attempt: `source`, `status`, `fetched_at`,
+`model_run`, `confidence`, and `dropped`. A degraded source remains a
+successful tool answer (`status: degraded`) and names what it dropped. A
+failed or skipped command is an MCP tool error, with its stderr and receipt
+preserved.
+
 Exit status is real: zero means the command answered. A source being down is not
 a failure — it is a degraded answer that still exits zero and says so. Read the
 status line, not the exit code, to know what was missing.
