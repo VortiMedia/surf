@@ -10,9 +10,14 @@
   <img alt="Data: open, no key" src="https://img.shields.io/badge/data-open%2C%20no%20key-D85A2A">
 </p>
 
-Picks one surf spot and one time window from open forecast, buoy, tide and
-bathymetry data, then tells you what would make it wrong. No account, no API
-key, no vendor.
+The auditable calculation layer for an AI surf researcher. Today it picks one
+surf spot and time window from open forecast, buoy, tide and bathymetry data,
+then tells you what would make it wrong. No account, API key or vendor.
+
+The broader goal is one evidence loop for natural-language trip decisions,
+coastline discovery, seasonal weather and flat-spell analysis, Google Earth
+output, historical backtesting and scheduled swell alerts. See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Why surf
 
@@ -72,19 +77,22 @@ Spots live in [`data/spots.tsv`](data/spots.tsv), one row each. Add your own.
 cp -r skill ~/.claude/skills/surf-intelligence
 ```
 
-Then ask for a call in plain English instead of remembering flags.
+Then ask where or when to surf, investigate a coast, compare a forecast with
+history, or define a setup worth watching instead of remembering flags.
 
 ## Things that will look like bugs
 
 **BARREL falls as the swell gets bigger.** The Iribarren number is
 `ξ = tanβ/√(H/L₀)`, so it scales with `H^-½`. A bigger wave at the same beach is
 a less hollow one. That is the physics, not an inverted sign — the component
-that rises with height is SIZE, and the two are never multiplied together.
+that rises with height is SIZE. They must remain separate decision axes.
 
-**Nothing is ever one number.** Four components are printed side by side and
-never fused into a rating. There is no defensible weighting between them, and
-the first version of the calibration check invented one and promptly ranked a
-1/5 session above three 5/5s. See [docs/CALIBRATION.md](docs/CALIBRATION.md).
+**Nothing is one universal number.** Four components are printed side by side.
+There is no defensible universal weighting between them, and the first fused
+score ranked a 1/5 session above three 5/5s. The current internal call picker
+still uses that product as an ordering key; replacing it requires a backtested
+decision rule, not another arbitrary score. See
+[docs/CALIBRATION.md](docs/CALIBRATION.md).
 
 **Every value carries where it came from.** Sources report `ok`, `degraded`,
 `failed` or `skipped`, and a degraded one names what it dropped. A dead source
