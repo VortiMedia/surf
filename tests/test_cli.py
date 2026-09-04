@@ -329,6 +329,7 @@ def test_session_add_appends_and_keeps_the_comment_header(tmp_path):
     assert lines[0].startswith("#")                      # the format doc survives
     assert lines[-1] == "2026-09-11\tPoint Judith\t07:00\t4\tchest high, offshore"
     assert "resolves to point-judith" in out
+    assert "REACH degraded" in out
 
 
 def test_session_add_regime_upgrades_a_legacy_file(tmp_path):

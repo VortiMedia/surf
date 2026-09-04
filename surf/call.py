@@ -10,6 +10,7 @@ from .daylight import Daylight, daylight
 from .evidence import EvidenceRecord
 from .lexicon import PhysicalFilter, apply_filters, metrics_for_hour
 from .response import Response
+from .reach import Reach
 from .score import NOMINAL_SLOPE, PLUNGING_BAND, Components, reference_field, score_hour
 from .sources import Reading
 from .spots import Derived, Spot
@@ -36,6 +37,7 @@ class Candidate:
     access_note: str = ""
     model_only: bool = False
     band_floor: str = ""
+    reach: Reach = field(default_factory=Reach.unknown)
 
 
 @dataclass(frozen=True)
@@ -394,7 +396,10 @@ def horizon_note(
 
 
 def _candidate(
-    hour: ScoredHour, outlook: SpotOutlook, band_floors: Mapping[str, str]
+    hour: ScoredHour,
+    outlook: SpotOutlook,
+    band_floors: Mapping[str, str],
+    reach: Reach,
 ) -> Candidate:
     return Candidate(
         spot_id=outlook.spot.id,
@@ -407,6 +412,7 @@ def _candidate(
         access_note=outlook.spot.access,
         model_only=hour.model_only,
         band_floor=band_floors.get(outlook.spot.id, ""),
+        reach=reach,
     )
 
 
@@ -422,6 +428,7 @@ def make_call(
     evidence: Sequence[EvidenceRecord] = (),
     band_floors: Mapping[str, str] | None = None,
     physical_filters: Sequence[PhysicalFilter] = (),
+    reach: Reach | None = None,
 ) -> Reading[Call]:
     """Commit to a spot, a day and a time — or say plainly that there is none.
 
@@ -430,6 +437,7 @@ def make_call(
     """
     fetched_at = _utc(now) if now is not None else datetime.now(timezone.utc)
     band_floors = band_floors or {}
+    reach = reach or Reach.unknown()
     start = fetched_at
     sharp_end = _end_of_day(fetched_at + timedelta(days=sharp_days))
 
@@ -448,6 +456,15 @@ def make_call(
                     f"{outlook.spot.id}: {before - len(hours)} hours did not satisfy "
                     "the requested physical filter (unknowns do not pass)"
                 )
+        outside_reach = sum(
+            1 for hour in hours if not reach.accepts(hour.components.size.raw)
+        )
+        if outside_reach:
+            dropped.append(
+                f"{outlook.spot.id}: {outside_reach} h above REACH ceiling "
+                f"({reach.ceiling_m:.2f} m nearshore Hs)"
+            )
+            hours = tuple(hour for hour in hours if reach.accepts(hour.components.size.raw))
         if hours:
             by_spot[outlook.spot.id] = (outlook, hours)
 
@@ -484,12 +501,12 @@ def make_call(
     caveats.extend(outlook.notes)
 
     runners = tuple(
-        _candidate(hour, by_spot[hour.spot.id][0], band_floors)
+        _candidate(hour, by_spot[hour.spot.id][0], band_floors, reach)
         for hour in ranked[1 : 1 + MAX_RUNNERS_UP]
     )
 
     call = Call(
-        winner=_candidate(peak, outlook, band_floors),
+        winner=_candidate(peak, outlook, band_floors, reach),
         window=window_text(run),
         signals=signals_for(peak, outlook),
         falsifiers=falsifiers_for(peak, outlook),

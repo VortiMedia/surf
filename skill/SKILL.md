@@ -52,6 +52,19 @@ target or an upper cap. A `measurement` is the lowest cached session rated 4 or
 `convention` based on depth-limited breaking and the shelf criterion. A setup
 type with neither enough sessions nor a stated convention prints no band.
 
+## REACH is a separate ceiling
+
+`REACH` is the largest cached nearshore Hs in a David session rated 4 or 5.
+The next permitted size is one 0.5 m nearshore-Hs step, using the measurement
+resolution shared by calibration and the band derivation. A 3/5 outlier never
+ratchets the mark. `surf call` drops forecast hours above that ceiling when all
+qualifying sessions have conditions; missing cache evidence is printed as
+`degraded` and never guessed. REACH is printed beside the four axes and never
+enters their ordering key. `surf session add` rereads the same session and
+condition-cache path, so a newly logged qualifying session moves the mark with
+no extra field. Access, cold water and other logistics remain costs; only an
+unreachable, unsafe or illegal option may be hard-filtered.
+
 ## MCP surface
 
 Run `surf-mcp` as a stdio MCP server. Its `tools/list` names map directly to

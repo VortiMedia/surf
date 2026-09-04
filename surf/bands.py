@@ -9,6 +9,11 @@ from typing import Iterable, Literal
 
 BandBasis = Literal["measurement", "convention"]
 
+# Nearshore-Hs resolution used when a band measurement becomes a user-facing
+# size step. Keep this beside the band derivation rather than inventing a second
+# scale in the REACH implementation.
+NEARSHORE_STEP_M = 0.5
+
 
 @dataclass(frozen=True)
 class BandObservation:

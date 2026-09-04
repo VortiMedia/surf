@@ -162,7 +162,9 @@ in the log is a 3/5 where he was not really surfing, and ratcheting off that
 clears him for something he already demonstrated he could not ride.
 
 Surface conditions at most one step above that mark. Every logged session moves
-it with no extra input. REACH stays visible next to SIZE, BARREL, CLEANNESS and
+it with no extra input. The implementation defines one step as 0.5 m of
+nearshore Hs, matching the measurement resolution used by calibration and the
+band derivation. REACH stays visible next to SIZE, BARREL, CLEANNESS and
 CONFIDENCE and is never multiplied into them.
 
 Logistics are costs, not filters. Cold water is a tax that a big enough wave can

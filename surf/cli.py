@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .bathymetry import NceiBathymetry
 from .bands import bands_from_log
-from .calibrate import ConditionCache, calibrate
+from .calibrate import ConditionCache, calibrate, recover
 from .climate import (
     ClimateResult,
     ClimateSource,
@@ -41,6 +41,7 @@ from .geometry import GeometryCache, beach_slope
 from .lexicon import lexicon_from_log, resolve_phrase
 from .ndbc import NdbcObservations
 from .open_meteo import MarineModelSet, OpenMeteoArchive
+from .reach import reach_from_log
 from .score import Components
 from .sessions import (
     COLUMNS as SESSION_COLUMNS,
@@ -311,6 +312,7 @@ def render_call(call: Call, console: Console) -> None:
     winner = call.winner
     console.say(f"CALL  {winner.spot_name.upper()}  {call.window or f'{winner.at:%a %d %b %H:%M} UTC'}")
     console.say(f"  {_components(winner.components)}")
+    console.say(f"  REACH {winner.reach.render()}")
     console.say(f"  BAND {winner.band_floor or 'none for this setup type'}")
     if winner.tide_note:
         console.say(f"  tide: {winner.tide_note}")
@@ -387,7 +389,9 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
 
     outlooks, readings, _ = _fetch(console, spots, window)
     console.record(*readings)
-    bands = bands_from_log(book)
+    cache = ConditionCache()
+    bands = bands_from_log(book, cache=cache)
+    reach = reach_from_log(book, cache=cache)
     entries = lexicon_from_log(book)
     physical_filters = resolve_phrase(args.want, entries) if args.want else ()
     if args.want and not physical_filters:
@@ -403,6 +407,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
         evidence=default_evidence(),
         band_floors={spot.id: bands[spot.break_type].render() for spot in spots if spot.break_type in bands},
         physical_filters=physical_filters,
+        reach=reach,
     )
     console.record(reading)
 
@@ -916,6 +921,17 @@ def cmd_session(args: argparse.Namespace, console: Console) -> int:
         )
     else:
         console.say(f"  resolves to {spot.id} ({spot.name})")
+    book = console.spots()
+    sessions = load_sessions(path, book=book)
+    cache = ConditionCache()
+    added = sessions[-1]
+    if added.rating is not None and added.rating >= 4 and added.usable_for_check:
+        archive = console.archive or OpenMeteoArchive(Http())
+        result = recover((added,), archive=archive, book=book, cache=cache)
+        if result and result[0].field is None:
+            console.warn(f"warning: REACH did not ratchet: {result[0].note}")
+    updated = reach_from_log(book, sessions=sessions, cache=cache)
+    console.say(f"  REACH {updated.render()}")
     return EXIT_OK
 
 
