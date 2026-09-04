@@ -112,7 +112,15 @@ class FakeClimate:
 def test_cli_climate_runs_each_zone_cell_and_reports_rejection(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("SURF_DATA", str(tmp_path))
     s = spot()
-    same_cell = replace(s, id="test-2", name="Test 2")
+    same_cell = replace(
+        s,
+        id="test-2",
+        name="Test 2",
+        lat=s.lat + 0.02,
+        lon=s.lon + 0.02,
+        offshore_lat=s.offshore_lat + 0.1,
+        offshore_lon=s.offshore_lon + 0.1,
+    )
     source = FakeClimate({s.id: (
         sample(datetime(2024, 7, 1, 0, tzinfo=UTC), wind_direction=180.0),
     )})

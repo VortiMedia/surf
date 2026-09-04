@@ -319,10 +319,16 @@ class OpenMeteoClimate:
 
 
 def climate_cell_key(spot: Spot) -> tuple[float, float, float, float]:
-    """Coordinates rounded to the coarse archive grid used for de-duplication."""
-    return tuple(round(value, 2) for value in (
-        spot.offshore_lat, spot.offshore_lon, spot.lat, spot.lon
-    ))  # type: ignore[return-value]
+    """ERA5 Ocean (0.5 deg) plus ERA5 wind (0.25 deg) cell identity."""
+    def cell(value: float, step: float) -> float:
+        return round(value / step) * step
+
+    return (
+        cell(spot.offshore_lat, 0.5),
+        cell(spot.offshore_lon, 0.5),
+        cell(spot.lat, 0.25),
+        cell(spot.lon, 0.25),
+    )
 
 
 def build_result(
