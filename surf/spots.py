@@ -38,6 +38,9 @@ class Spot:
     access: str = ""                # a cost note, never a filter
     surfline_id: str | None = None  # optional metadata, never the lookup path
     aliases: tuple[str, ...] = field(default_factory=tuple)
+    zone: str | None = None         # shared swell/wind regime, if known
+    zone_provenance: Provenance = "default"
+    zone_note: str = ""
 
     @property
     def offshore_wind_bearing(self) -> float:
@@ -64,6 +67,9 @@ COLUMNS: tuple[str, ...] = (
     "offshore_lat",
     "offshore_lon",
     "region",
+    "zone",
+    "zone_provenance",
+    "zone_note",
     "break_type",
     "buoys",
     "tide_station",
@@ -95,6 +101,8 @@ PREAMBLE = """\
 #                falls back to nautical time (longitude/15), which ignores DST.
 # access         a cost note, never a filter
 # aliases        pipe-separated; how data/sessions.tsv and humans name this spot
+# zone           shared swell/wind regime; empty is explicitly unassigned
+# zone_provenance and zone_note carry how that assignment was made
 #
 # No Outer Cape spots: zero ground truth there.
 """
@@ -179,6 +187,9 @@ def parse_row(cells: dict[str, str]) -> Spot:
         offshore_lat=_float(cells["offshore_lat"], "offshore_lat", spot_id),
         offshore_lon=_float(cells["offshore_lon"], "offshore_lon", spot_id),
         region=cells["region"].strip(),
+        zone=cells["zone"].strip() or None,
+        zone_provenance=_provenance(cells["zone_provenance"], "zone", spot_id),
+        zone_note=cells["zone_note"].strip(),
         break_type=break_type,  # type: ignore[arg-type]
         buoys=tuple(b.strip() for b in cells["buoys"].split(_BUOY_SEP) if b.strip()),
         tide_station=cells["tide_station"].strip() or None,
@@ -204,6 +215,9 @@ def format_row(spot: Spot) -> list[str]:
         f"{spot.offshore_lat:.4f}",
         f"{spot.offshore_lon:.4f}",
         spot.region,
+        spot.zone or "",
+        spot.zone_provenance,
+        spot.zone_note,
         spot.break_type,
         _BUOY_SEP.join(spot.buoys),
         spot.tide_station or "",
@@ -284,6 +298,23 @@ class SpotBook:
         """Prefix match, so `US` selects every US region and `US-RI` one state."""
         key = region.strip().upper()
         return tuple(s for s in self.spots if s.region.upper().startswith(key))
+
+    def in_zone(self, zone: str) -> tuple[Spot, ...]:
+        """Return spots in one shared regime, or explicitly unassigned spots.
+
+        Zone names are exact (apart from case and surrounding whitespace). An
+        empty name and ``unassigned`` both query rows with no zone; those rows
+        remain visible instead of being silently put in a nearby regime.
+        """
+        key = zone.strip().casefold()
+        if key in {"", "unassigned"}:
+            return tuple(s for s in self.spots if s.zone is None)
+        return tuple(s for s in self.spots if s.zone is not None and s.zone.casefold() == key)
+
+    def zone_for(self, name: str) -> str | None:
+        """Resolve a spot name or id and return its zone, if assigned."""
+        spot = self.resolve(name)
+        return spot.zone if spot is not None else None
 
     def resolve(self, name: str) -> Spot | None:
         """Written name to Spot, or None.

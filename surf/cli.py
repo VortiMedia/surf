@@ -393,6 +393,8 @@ def _geometry_lines(spot: Spot) -> list[str]:
     return [
         f"  id            {spot.id}",
         f"  position      {spot.lat:.4f}, {spot.lon:.4f}  ({spot.region}, {spot.break_type})",
+        f"  zone          {spot.zone or 'unassigned'} ({spot.zone_provenance})"
+        + (f" — {spot.zone_note}" if spot.zone_note else ""),
         f"  shore normal  {_derived(spot.shore_normal, '{:.0f} deg')}",
         f"  offshore wind {_bearing(spot.offshore_wind_bearing)} (dead offshore here)",
         f"  beach slope   {_derived(spot.beach_slope)}",

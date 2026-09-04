@@ -135,6 +135,22 @@ def test_in_region_prefix_selects_state_then_country(book: SpotBook) -> None:
     assert book.in_region("ZA") and not book.in_region("AU")
 
 
+def test_every_spot_is_assigned_or_explicitly_unassigned(book: SpotBook) -> None:
+    for spot in book:
+        assert spot.zone_provenance in ("derived", "manual", "default")
+        if spot.zone is None:
+            assert spot.zone_note
+
+
+def test_zone_queries_are_exact_and_keep_unassigned_spots_visible(book: SpotBook) -> None:
+    assert {s.id for s in book.in_zone("POINT-JUDITH")} == {
+        "point-judith", "camp-cronin", "little-compton"
+    }
+    assert book.zone_for("Prea") == "ceara-north-coast"
+    assert book.zone_for("Davis Bank") is None
+    assert {s.id for s in book.in_zone("unassigned")} == {"davis-bank", "georges-bank-shoal"}
+
+
 # --- name resolution ------------------------------------------------------
 
 @pytest.mark.parametrize(

@@ -33,6 +33,9 @@ POINT_JUDITH = Spot(
     tide_station="8452660",
     access="car only, ~1h45 from Boston; rental ~$150",
     aliases=("point jude",),
+    zone="point-judith",
+    zone_provenance="manual",
+    zone_note="shared Point Judith swell window and wind regime",
 )
 
 # No buoy in range of this one, so it is model-only.
@@ -248,6 +251,7 @@ def test_call_prints_human_units_beside_the_si_ones():
 def test_spot_prints_geometry_with_provenance():
     code, out, _ = run("spot", "point jude", "--days", "1", sources=live_sources())
     assert code == cli.EXIT_OK
+    assert "zone          point-judith (manual)" in out
     assert "160 deg (manual)" in out
     assert "0.035 (derived)" in out
     assert "44097" in out
@@ -257,6 +261,7 @@ def test_spot_prints_geometry_with_provenance():
 def test_spot_says_what_is_missing_rather_than_filling_it_in():
     code, out, _ = run("spot", "llandudno", "--days", "1", sources=live_sources())
     assert code == cli.EXIT_OK
+    assert "zone          unassigned (default)" in out
     assert "none — model-only" in out
     assert "0.050 (default)" in out          # a default slope is a warning, not a value
     assert "Open-Meteo sea level" in out
