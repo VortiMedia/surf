@@ -425,7 +425,9 @@ def test_surfline_stays_optional():
 def test_every_subcommand_is_wired():
     parser = cli.build_parser()
     actions = [a for a in parser._actions if getattr(a, "choices", None) and hasattr(a.choices, "keys")]
-    assert set(actions[0].choices) == {"sources", "call", "spot", "calibrate", "session", "geometry"}
+    assert set(actions[0].choices) == {
+        "sources", "call", "spot", "calibrate", "session", "geometry", "exposure",
+    }
 
 
 def test_call_prints_the_heads_up_only_when_it_looked_that_far():

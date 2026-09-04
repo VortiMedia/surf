@@ -10,6 +10,7 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 surf = "surf.cli:main"
+surf-exposure = "surf.exposure:main"
 
 [build-system]
 requires = ["setuptools>=68"]

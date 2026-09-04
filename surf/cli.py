@@ -503,6 +503,25 @@ def _check_date(raw: str) -> str:
     return text
 
 
+def exposure_module():
+    """Imported lazily: it needs shapely, which is not a package dependency."""
+    return import_module("surf.exposure")
+
+
+def cmd_exposure(args: argparse.Namespace, console: Console) -> int:
+    """Swell exposure per 200 m of coast, written as a styled KMZ.
+
+    Geometry only — facing times the unblocked fraction of the arriving fan.
+    No bathymetry, refraction, wind or forecast enters this number.
+    """
+    module = exposure_module()
+    try:
+        return module.run(args, console.say)
+    except module.ExposureError as exc:
+        console.warn(f"{PROGRAM} exposure: {exc}")
+        return EXIT_FAILED
+
+
 def cmd_geometry(args: argparse.Namespace, console: Console) -> int:
     """Derive per-spot geometry from the sea floor and, with --write, store it.
 
@@ -651,6 +670,12 @@ def build_parser() -> argparse.ArgumentParser:
     session.add_argument("--notes", default="", help="what it was actually like")
     session.add_argument("--path", default=None, help="session file to append to")
     session.set_defaults(run=cmd_session)
+
+    exposure = sub.add_parser(
+        "exposure", help="colour a coastline GeoJSON by exposure to one swell direction"
+    )
+    exposure_module().add_arguments(exposure)
+    exposure.set_defaults(run=cmd_exposure)
 
     return parser
 
