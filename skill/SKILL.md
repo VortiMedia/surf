@@ -45,6 +45,7 @@ a rating back.
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
 | `surf snapshot issue` / `surf snapshot verify` | Freeze a forecast JSONL record before `valid_at`, then join it later to explicit buoy observations and session rows. Snapshots are append-only; errors stay unscored when observations are missing or quantities do not match. |
+| `surf watch save` / `surf watch run` | Save structured swell, wind, tide, model-agreement and lead-time conditions, then run the same forecast/scoring path on a schedule. Alerts name the evidence; degraded sources suppress confident alerts. |
 | `surf exposure <coastline.geojson> --swell D [--output F.kmz] [--land F]` | Colour a coastline by exposure to one swell direction and write a Google Earth KMZ. Also installed as `surf-exposure`. |
 
 ## Band floors

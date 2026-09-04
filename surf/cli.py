@@ -84,6 +84,7 @@ from .terrain import (
     terrain_cache_path,
 )
 from .waves import Forecast, SwellPartition, TidePoint, WaveField, m_to_ft, mps_to_kt
+from .watch import SavedSetup, SetupConditions, SetupStore, WatchError, run_watch
 
 PROGRAM = "surf"
 
@@ -1140,6 +1141,67 @@ def cmd_snapshot(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
+def _load_conditions(raw: str) -> dict[str, Any]:
+    try:
+        path = Path(raw)
+        text = path.read_text(encoding="utf-8") if path.exists() else raw
+        value = json.loads(text)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise WatchError(f"conditions are not valid JSON or a readable file: {exc}") from exc
+    if not isinstance(value, dict):
+        raise WatchError("conditions must be a JSON object")
+    return value
+
+
+def cmd_watch(args: argparse.Namespace, console: Console) -> int:
+    """Save structured setup conditions or run one scheduled evaluation."""
+    store = SetupStore(args.path)
+    if args.action == "save":
+        if not args.name or not args.spot or not args.conditions:
+            console.warn("watch save requires --name, --spot and --conditions")
+            return EXIT_USAGE
+        try:
+            setup = SavedSetup(
+                name=args.name,
+                spots=tuple(args.spot),
+                conditions=SetupConditions.from_dict(_load_conditions(args.conditions)),
+            )
+            store.save(setup)
+        except WatchError as exc:
+            console.warn(f"watch save: {exc}")
+            return EXIT_FAILED
+        console.say(f"saved setup {setup.name!r} for {', '.join(setup.spots)} to {args.path}")
+        return EXIT_OK
+
+    try:
+        setup = store.load()
+        snapshots = SnapshotStore(args.snapshots) if args.snapshots else None
+        result = run_watch(
+            setup,
+            service=console.service(),
+            book=console.spots(),
+            now=console.clock(),
+            snapshot_store=snapshots,
+            model_run=args.model_run,
+        )
+    except (WatchError, SnapshotError) as exc:
+        console.warn(f"watch run: {exc}")
+        return EXIT_FAILED
+    console.say(f"WATCH  {setup.name}  {len(result.alerts)} spot(s)")
+    for alert in result.alerts:
+        if alert.fired:
+            console.say(f"  ALERT {alert.spot} at {alert.valid_at.isoformat() if alert.valid_at else 'unknown'}")
+            for evidence in alert.evidence:
+                console.say(f"    evidence: {evidence}")
+        else:
+            detail = alert.reason or "; ".join(alert.dropped) or "no match"
+            console.say(f"  no alert {alert.spot}: {detail}")
+    for item in result.dropped:
+        console.say(f"  dropped: {item}")
+    console.say(f"  snapshots written: {result.snapshots_written}")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=PROGRAM,
@@ -1272,6 +1334,16 @@ def build_parser() -> argparse.ArgumentParser:
     snapshot.add_argument("--observations", default=None, help="later buoy observations JSONL (verify)")
     snapshot.add_argument("--sessions", default=None, help="session log to join (verify)")
     snapshot.set_defaults(run=cmd_snapshot)
+
+    watch = sub.add_parser("watch", help="save setup conditions and run a scheduled alert check")
+    watch.add_argument("action", choices=("save", "run"))
+    watch.add_argument("--path", required=True, help="saved setup JSON path")
+    watch.add_argument("--name", default=None, help="setup name (save)")
+    watch.add_argument("--spot", action="append", default=[], help="spot id or name; repeatable (save)")
+    watch.add_argument("--conditions", default=None, help="conditions JSON object or file (save)")
+    watch.add_argument("--snapshots", default=None, help="append-only snapshot JSONL path (run)")
+    watch.add_argument("--model-run", default=None, help="explicit model run identifier for snapshots (run)")
+    watch.set_defaults(run=cmd_watch)
 
     exposure = sub.add_parser(
         "exposure", help="colour a coastline GeoJSON by exposure to one swell direction"
