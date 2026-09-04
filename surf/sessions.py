@@ -82,6 +82,7 @@ class SessionAudit:
     after: tuple[Session, ...]
     repairs: tuple[SessionRepair, ...]
     questions: tuple[SessionQuestion, ...]
+    unanswerable: tuple[SessionQuestion, ...] = ()
     wrote: bool = False
 
     @property
@@ -91,6 +92,15 @@ class SessionAudit:
     @property
     def after_resolvable(self) -> int:
         return len(usable(self.after))
+
+
+def _unanswerable(notes: str, field: str) -> str | None:
+    """Return a human provenance marker for a permanently unknown field."""
+    prefix = f"UNANSWERABLE: {field.upper()}"
+    for line in notes.split(";"):
+        if line.strip().upper().startswith(prefix):
+            return line.strip()
+    return None
 
 
 def _wave_field_is_surfable(field: Any) -> bool:
@@ -203,6 +213,7 @@ def audit_sessions(
     repaired: list[Session] = []
     repairs: list[SessionRepair] = []
     questions: list[SessionQuestion] = []
+    unanswerable: list[SessionQuestion] = []
 
     for row, session in enumerate(before, start=1):
         current = session
@@ -244,15 +255,28 @@ def audit_sessions(
                     ))
 
         if current.spot_id is None:
-            questions.append(SessionQuestion(row, current.raw_date, current.raw_spot, "which spot?"))
+            marker = _unanswerable(current.notes, "spot")
+            target = unanswerable if marker else questions
+            target.append(SessionQuestion(
+                row, current.raw_date, current.raw_spot,
+                marker or "which spot?",
+            ))
         if current.on is None:
-            questions.append(SessionQuestion(row, current.raw_date, current.raw_spot, "which year?"))
+            marker = _unanswerable(current.notes, "year")
+            target = unanswerable if marker else questions
+            target.append(SessionQuestion(
+                row, current.raw_date, current.raw_spot,
+                marker or "which year?",
+            ))
         repaired.append(current)
 
     did_write = bool(write and repairs and path.exists())
     if did_write:
         _rewrite_audited_file(path, repaired)
-    return SessionAudit(tuple(before), tuple(repaired), tuple(repairs), tuple(questions), did_write)
+    return SessionAudit(
+        tuple(before), tuple(repaired), tuple(repairs), tuple(questions),
+        tuple(unanswerable), did_write,
+    )
 
 
 def default_sessions_path() -> Path:

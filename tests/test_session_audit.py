@@ -88,3 +88,17 @@ def test_audit_refuses_ambiguous_candidate_and_keeps_marker(tmp_path):
     assert report.after[0].raw_spot == "lido-beach"
     assert any("multiple surfable candidates" in q.question for q in report.questions)
     assert "????-03-03\tlido-beach" in path.read_text(encoding="utf-8")
+
+
+def test_audit_accepts_explicit_permanent_unanswerable(tmp_path):
+    path = tmp_path / "sessions.tsv"
+    _write(
+        path,
+        "????-03-03\tlido-beach\t--\t3\tUNANSWERABLE: YEAR — archive candidates are ambiguous\n"
+        "2024-12-05\tunknown\t--\t5\tUNANSWERABLE: SPOT — no identifying evidence\n",
+    )
+    report = audit_sessions(path, book=BOOK)
+
+    assert report.questions == ()
+    assert len(report.unanswerable) == 2
+    assert report.wrote is False

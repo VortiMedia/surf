@@ -557,6 +557,23 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
             )
     else:
         console.say("questions: none")
+    if report.unanswerable:
+        console.say("permanent unanswerables")
+        seen: set[tuple[str, str, str]] = set()
+        for question in report.unanswerable:
+            key = (question.raw_date, question.raw_spot, question.question)
+            if key in seen:
+                continue
+            seen.add(key)
+            console.say(
+                f"  row {question.row} {question.raw_date}\t{question.raw_spot}: "
+                f"{question.question}"
+            )
+    hand = [s for s in report.after if "[hand:" in s.notes]
+    if hand:
+        console.say("hand resolutions")
+        for session in hand:
+            console.say(f"  {session.raw_date}\t{session.raw_spot}: {session.notes}")
     if report.wrote:
         console.say(f"wrote {args.path or default_sessions_path()}")
     elif args.dry_run:

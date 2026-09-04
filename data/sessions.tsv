@@ -31,17 +31,17 @@ date	spot	time	rating	notes
 2022-09-23	camp-hero	--	3	[audit: canonical spot id from spots.tsv (camp-hero)]
 2022-06-15?	little-compton	sunset	3	small, fun, grovel (also 6/16 sunrise) [audit: canonical spot id from spots.tsv (little-compton)]
 2024-02-29	point-judith	--	4	fun  (Feb 29 = leap year, so 2024 confirmed) [audit: canonical spot id from spots.tsv (point-judith)]
-????-02-22	point-judith	08:48	4	fun [audit: canonical spot id from spots.tsv (point-judith)]
-????-05-21	point-judith	--	4	more fun [audit: canonical spot id from spots.tsv (point-judith)]
-????-08-17	camp-cronin	--	5	surfed the big point, felt like Waimea; then shortboard in front of the rocks, novelty, so much fun [audit: canonical spot id from spots.tsv (camp-cronin)]
-????-01-04	unknown	17:00	5	super fun and perfect  (NEEDS SPOT + YEAR — logged as "jan 4 17")
-????-09-14	lido-beach	10:00	4	awesome  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (lido-beach)]
-????-09-21	lido-beach	--	3	pretty chilled  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (lido-beach)]
-????-03-03	lido-beach	--	3	SUPER WEIRD — longshore current running EAST; normally pulls WEST here  (NEEDS YEAR + SPOT CONFIRM) [audit: canonical spot id from spots.tsv (lido-beach)]
-????-06-24	spring-lake	07:29	4	pretty fun  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (spring-lake)]
-????-07-07	manasquan	--	1	pretty flat  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (manasquan)]
-????-07-11	manasquan	04:50	3	surfed, dawn patrol  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (manasquan)]
-2024-12-05	unknown	--	5	have video of a nice tube  (NEEDS SPOT)
-2024-08-19	unknown	--	4	looked super sick and fun  (NEEDS SPOT)
-????-06-19	stonewall	07:56	3	LOWER BOUND — "about as small as we'd want to go". Defines minimum rideable size for MV  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (stonewall)]
+????-02-22	point-judith	08:48	4	fun [audit: canonical spot id from spots.tsv (point-judith)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-05-21	point-judith	--	4	more fun [audit: canonical spot id from spots.tsv (point-judith)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-08-17	camp-cronin	--	5	surfed the big point, felt like Waimea; then shortboard in front of the rocks, novelty, so much fun [audit: canonical spot id from spots.tsv (camp-cronin)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+2017-01-04	unknown	17:00	5	super fun and perfect  (logged as "jan 4 17") [hand: date resolved from the existing note "jan 4 17"]; UNANSWERABLE: SPOT — the log and video note do not identify the break
+????-09-14	lido-beach	10:00	4	awesome  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (lido-beach)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-09-21	lido-beach	--	3	pretty chilled  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (lido-beach)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-03-03	lido-beach	--	3	SUPER WEIRD — longshore current running EAST; normally pulls WEST here  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (lido-beach)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-06-24	spring-lake	07:29	4	pretty fun  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (spring-lake)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-07-07	manasquan	--	1	pretty flat  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (manasquan)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+????-07-11	manasquan	04:50	3	surfed, dawn patrol  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (manasquan)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
+2024-12-05	unknown	--	5	have video of a nice tube  (NEEDS SPOT); UNANSWERABLE: SPOT — the log and video note do not identify the break
+2024-08-19	unknown	--	4	looked super sick and fun  (NEEDS SPOT); UNANSWERABLE: SPOT — the log does not identify the break
+????-06-19	stonewall	07:56	3	LOWER BOUND — "about as small as we'd want to go". Defines minimum rideable size for MV  (NEEDS YEAR) [audit: canonical spot id from spots.tsv (stonewall)]; UNANSWERABLE: YEAR — archive has multiple surfable candidates and the log gives no year
 2023-02-25	kommetjie	16:45	5	best day ever there, super awesome, super fun [audit: canonical spot id from spots.tsv (kommetjie)]

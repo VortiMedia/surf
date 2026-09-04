@@ -15,9 +15,10 @@ and Costa Rica. Date, spot, time, rating 1–5, notes — dumb enough that a row
 takes ten seconds to add.
 
 Ambiguous fields keep their question marks. `2025-08-05?` is a date I am not
-sure of and `????-02-22` has no year at all; both stay in the file and both stay
-out of the checks that need them. A guessed year would quietly poison the only
-referee there is.
+sure of and `????-02-22` has no year at all; both stay out of checks that need
+them. The session audit tested each yearless date against the archive and found
+multiple surfable candidates every time, so those years are explicitly marked
+`UNANSWERABLE` rather than guessed.
 
 ## Why 41 rows are worth more than they look
 
@@ -69,10 +70,10 @@ thing in the log and it is still skipped, because that row has no year.
 29 usable sessions, conditions from the archive:
 
 ```
-[PASS] no 1/5 dominates a 5/5: 6/6 pairs clear (6 at 5/5 vs 1 at 1/5;
+[PASS] no 1/5 dominates a 5/5: 6/6 pairs clear (6 sessions at 5/5 vs 1 at 1/5;
        only 1 low anchor, so the pairs are not independent)
        rho(rating, barrel)    = -0.07
-       rho(rating, size)      = +0.60
+       rho(rating, size)      = +0.61
        rho(rating, cleanness) = -0.14
 [PASS] Lido current sets west on typical swell (8 sessions, mean 144 deg)
 [SKIP] Lido current sets east on ????-03-03 — no swell direction recovered
@@ -97,9 +98,26 @@ honest way to tell them apart.
 
 ## Gaps
 
-Rows needing a year: 09-14, 09-21, 03-03, 06-24, 07-07, 07-11, 06-19, and
-several 2025 Cape Town dates. Rows needing a spot: 2024-12-05 (a 5/5, and there
-is video, so it can be checked against footage) and 2024-08-19.
+The audit leaves 13 permanent unanswerables: years for 02-22, 05-21, 08-17,
+09-14, 09-21, 03-03, 06-24, 07-07, 07-11 and 06-19, plus spots for 2017-01-04,
+2024-12-05 and 2024-08-19. The archive has multiple surfable candidates for
+each missing year; the log and video notes do not identify the three missing
+spots. `2017-01-04` is the one hand date resolution, taken from the existing
+note `jan 4 17`; its spot remains unanswerable. `surf session audit` reports zero
+outstanding questions and names these permanent ones.
+
+## Audit result, 2026-09-03
+
+| | before audit | after audit |
+|---|---:|---:|
+| rows with a date, spot and rating | 29 | 29 |
+| rows with a usable date | 31 | 32 |
+| ranking pairs clear | 6/6 | 6/6 |
+| rho(rating, SIZE) | +0.60 | +0.61 |
+
+The hand date is now provenance-carrying, but its spot is unknown, so it cannot
+enter calibration. No ranking moved; the gate still passes. The small SIZE
+change is a fresh archive recovery, not a new session or a fitted parameter.
 
 ## Corrections to the log, 2026-09-03
 
