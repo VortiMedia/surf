@@ -39,6 +39,7 @@ a rating back.
 | `surf terrain --zone Z --bbox min_lat,min_lon,max_lat,max_lon` | Scan an explicit zone grid of feature-resolving bathymetry for stable terrain-object candidates; uses `data/climate/` and never promotes a candidate to a surf spot automatically. Add `--refresh` to rebuild it. |
 | `surf lexicon [phrase]` | Show the physical filters behind session language, their support count, and whether each is measured, conventional, or contradicted. `surf call --want phrase` applies the same filters. |
 | `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component, and show each scored row's regime. |
+| `surf imagery --zone Z --bbox min_lat,min_lon,max_lat,max_lon --frames manifest.json` | Screen terrain candidates with cloud-free, georeferenced imagery metadata. Reports static geometry measurements in metres as kept, rejected or unresolvable; it never reports wave state. Results use `data/imagery/` (gitignored). |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`; `--regime` records an explicit swell/wind regime. |
 | `surf session audit [--online]` | Canonicalize spot ids and repair only dates with one surfable archive candidate; unresolved questions stay marked. Use `--dry-run` to inspect without writing. |
@@ -279,3 +280,13 @@ archive result is cached under `data/climate/` and carries source, status and
 `fetched_at`; this is derived, rebuildable data, not another source-of-truth
 file. Coarse regional wind cannot resolve terrain shelter, so sheltered spots
 are marked unverified rather than scored bad.
+
+`surf imagery` is a static-geometry screen for candidates already proposed by
+`surf terrain`. Its frame manifest must identify the source, capture date,
+metre resolution, cloud-free state and georeferencing, plus measured geometry
+such as a reef or channel width. It reports only `kept`, `rejected` or
+`unresolvable`, with the frames and dates used. `unresolvable` means the
+resolution or frame cannot answer the geometry question; it is not a wave
+finding and is never silently changed into a rejection. Derived results live
+under gitignored `data/imagery/`; no image bytes or wave-state claims belong in
+this screen.

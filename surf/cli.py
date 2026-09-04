@@ -38,6 +38,7 @@ from .call import (
 from .forecast import ForecastService, Sources, SpotForecast
 from .evidence import default_evidence
 from .geometry import GeometryCache, beach_slope
+from .imagery import imagery_cache_path, load_frames, save_screen, screen_candidates
 from .lexicon import lexicon_from_log, resolve_phrase
 from .ndbc import NdbcObservations
 from .open_meteo import MarineModelSet, OpenMeteoArchive
@@ -787,6 +788,42 @@ def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
     return EXIT_FAILED if status == "failed" else EXIT_OK
 
 
+def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
+    """Review static geometry from cloud-free, georeferenced frame metadata."""
+    bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
+    if len(bbox) != 4:
+        raise ValueError("--bbox must be min_lat,min_lon,max_lat,max_lon")
+    terrain_path = terrain_cache_path(args.zone, bbox)
+    if not terrain_path.exists():
+        console.warn(f"no terrain cache for {args.zone!r}; run `surf terrain` first")
+        return EXIT_FAILED
+    _, _, _, scans = load_terrain_cache(terrain_path)
+    frames = load_frames(Path(args.frames))
+    screen = screen_candidates(scans, frames, args.zone, console.clock())
+    path = imagery_cache_path(args.zone, bbox)
+    save_screen(path, screen)
+    console.say(f"IMAGERY  {args.zone}")
+    console.say(f"  source         {screen.source}:{screen.status}")
+    console.say(f"  fetched_at     {screen.fetched_at.isoformat()}")
+    console.say(f"  note           {screen.note}")
+    for review in screen.reviews:
+        console.say()
+        console.say(f"  {review.candidate}  {review.decision}")
+        console.say(f"    coordinates   {review.lat:.5f}, {review.lon:.5f}")
+        console.say(f"    source        {review.source}")
+        console.say(f"    resolution    {review.resolution_m or 'unknown'} m")
+        console.say(f"    capture dates {', '.join(review.capture_dates) or 'none'}")
+        console.say(f"    frames        {', '.join(review.frames) or 'none'}")
+        if review.measurements_m:
+            console.say("    geometry      " + ", ".join(f"{name}={value:g} m" for name, value in review.measurements_m))
+        console.say(f"    status        {review.status}")
+        if review.note:
+            console.say(f"    note          {review.note}")
+    if not screen.reviews:
+        console.say("  no terrain candidates in cache")
+    return EXIT_OK
+
+
 def _check_date(raw: str) -> str:
     """Accept exactly what the loader accepts: `2025-09-30`, `2025-09-30?` and
     `????-03-03`. Rejected here rather than written, because `parse_date` answers
@@ -1005,6 +1042,17 @@ def build_parser() -> argparse.ArgumentParser:
     terrain.add_argument("--step", type=float, default=0.05, help="scan-cell spacing in degrees")
     terrain.add_argument("--refresh", action="store_true", help="rebuild the derived terrain cache")
     terrain.set_defaults(run=cmd_terrain)
+
+    imagery = sub.add_parser(
+        "imagery", help="screen terrain candidates with static-geometry imagery metadata"
+    )
+    imagery.add_argument("--zone", required=True, help="zone label used by the terrain scan")
+    imagery.add_argument("--bbox", required=True, help="min_lat,min_lon,max_lat,max_lon")
+    imagery.add_argument(
+        "--frames", required=True,
+        help="JSON manifest of cloud-free, georeferenced imagery frames and metre measurements",
+    )
+    imagery.set_defaults(run=cmd_imagery)
 
     calibrate_cmd = sub.add_parser("calibrate", help="check the model against the session log")
     calibrate_cmd.add_argument(
