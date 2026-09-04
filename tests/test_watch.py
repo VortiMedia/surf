@@ -9,12 +9,14 @@ from surf.sources import Reading, Window
 from surf.waves import SwellPartition, TidePoint, WaveField, Wind
 from surf import cli
 from surf.watch import (
+    Alert,
     Range,
     SavedSetup,
     SetupConditions,
     SetupStore,
     SwellCondition,
     TideCondition,
+    WatchRun,
     WindCondition,
     evaluate_forecast,
     run_watch,
@@ -130,7 +132,6 @@ def test_cli_scheduled_run_requires_provenance_and_defaults_snapshot_archive(tmp
     def fake_run(setup, *, service, book, now, snapshot_store, model_run):
         captured["path"] = snapshot_store.path
         captured["model_run"] = model_run
-        from surf.watch import WatchRun
         return WatchRun(())
 
     monkeypatch.setattr(cli, "run_watch", fake_run)
@@ -143,3 +144,28 @@ def test_cli_scheduled_run_requires_provenance_and_defaults_snapshot_archive(tmp
         "path": tmp_path / "cache" / "forecast-snapshots.jsonl",
         "model_run": "run-1",
     }
+
+
+def test_cli_degraded_alert_names_dropped_evidence(tmp_path, monkeypatch, capsys):
+    setup_path = tmp_path / "setup.json"
+    SetupStore(setup_path).save(SETUP)
+
+    def fake_run(*args, **kwargs):
+        return WatchRun((Alert(
+            SETUP.name,
+            SPOT.id,
+            None,
+            False,
+            dropped=("gwam:degraded dropped=wind",),
+            reason="source evidence degraded; confident alert suppressed",
+        ),))
+
+    monkeypatch.setattr(cli, "run_watch", fake_run)
+    code = cli.main(
+        ["watch", "run", "--path", str(setup_path), "--model-run", "run-1"],
+        console=cli.Console(book=SpotBook((SPOT,)), clock=lambda: NOW),
+    )
+    assert code == cli.EXIT_OK
+    output = capsys.readouterr().out
+    assert "confident alert suppressed" in output
+    assert "dropped: gwam:degraded dropped=wind" in output
