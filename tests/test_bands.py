@@ -28,3 +28,10 @@ def test_sparse_point_and_reef_bands_are_labelled_conventions() -> None:
 def test_unknown_type_without_sessions_or_convention_has_no_band() -> None:
     bands = derive_band_floors((BandObservation("rivermouth", 0.8, 3),))
     assert "rivermouth" not in bands
+
+
+def test_sparse_observed_beach_is_a_labelled_convention() -> None:
+    band = derive_band_floors((BandObservation("beach", 1.2, 4),))["beach"]
+    assert band.basis == "convention"
+    assert "depth-limited" in band.detail
+    assert "source=" in band.render()

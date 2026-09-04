@@ -53,6 +53,8 @@ target or an upper cap. A `measurement` is the lowest cached session rated 4 or
 5 and includes its sample count. Sparse point and reef evidence stays a
 `convention` based on depth-limited breaking and the shelf criterion. A setup
 type with neither enough sessions nor a stated convention prints no band.
+Sparse observed beach, jetty and river-mouth types are also labelled convention
+until enough rated sessions make their floor a measurement.
 
 ## REACH is a separate ceiling
 

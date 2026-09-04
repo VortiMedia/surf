@@ -29,11 +29,13 @@ class BandFloor:
     sample_count: int
     basis: BandBasis
     detail: str
+    source: str = "session log + condition cache"
 
     def render(self) -> str:
         return (
             f"minimum {self.minimum_m:.1f} m nearshore Hs "
-            f"({self.basis}; n={self.sample_count}) — {self.detail}; no upper cap"
+            f"({self.basis}; n={self.sample_count}; source={self.source}) — "
+            f"{self.detail}; no upper cap"
         )
 
 
@@ -48,6 +50,14 @@ CONVENTIONS: dict[str, tuple[float, str]] = {
         1.0,
         "depth-limited breaking; the shelf criterion must survive source resolution",
     ),
+}
+
+# A sparse observed type still gets a labelled convention. An unseen type is
+# intentionally absent unless it has a stated convention above.
+SPARSE_DETAILS: dict[str, str] = {
+    "beach": "depth-limited beach breaking; more rated sessions are needed",
+    "jetty": "depth-limited breaking around the jetty; more rated sessions are needed",
+    "rivermouth": "depth-limited breaking on the river bar; more rated sessions are needed",
 }
 
 
@@ -72,11 +82,26 @@ def derive_band_floors(
                 len(heights),
                 "measurement",
                 "lowest session rated 4 or 5",
+                "session log + condition cache",
             )
         elif setup_type in CONVENTIONS:
             value, detail = CONVENTIONS[setup_type]
             out[setup_type] = BandFloor(
-                setup_type, value, len(heights), "convention", detail
+                setup_type,
+                value,
+                len(heights),
+                "convention",
+                detail,
+                "documented physics convention + sparse session evidence",
+            )
+        elif heights and setup_type in SPARSE_DETAILS:
+            out[setup_type] = BandFloor(
+                setup_type,
+                min(heights),
+                len(heights),
+                "convention",
+                SPARSE_DETAILS[setup_type],
+                "documented physics convention + sparse session evidence",
             )
     return out
 

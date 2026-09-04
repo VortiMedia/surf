@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, replace
 from datetime import date
@@ -137,11 +138,22 @@ def _wave_field_is_surfable(field: Any) -> bool:
     This is deliberately only an existence test. The audit is allowed to find a
     unique day with data; it is not allowed to infer a rating or a quality band.
     """
+    def positive_finite(value: Any) -> bool:
+        try:
+            return math.isfinite(float(value)) and float(value) > 0.0
+        except (TypeError, ValueError):
+            return False
+
     primary = getattr(field, "primary", None)
-    if primary is not None and getattr(primary, "height_m", 0.0) > 0.0:
+    if (
+        primary is not None
+        and positive_finite(getattr(primary, "height_m", 0.0))
+        and positive_finite(getattr(primary, "period_s", 0.0))
+    ):
         return True
     height = getattr(field, "total_height_m", None)
-    return height is not None and height > 0.0
+    period = getattr(field, "total_period_s", None)
+    return positive_finite(height) and positive_finite(period)
 
 
 def _candidate_years(

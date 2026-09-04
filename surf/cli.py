@@ -203,7 +203,8 @@ def outlook_from(forecast: SpotForecast) -> SpotOutlook:
 @dataclass
 class Console:
     """Everything impure a command touches arrives through here. Built lazily so
-    `surf session add` constructs no network stack at all.
+    `surf session add` constructs its archive lazily only when a new rated
+    session needs conditions for the REACH ratchet.
     """
 
     out: TextIO = field(default_factory=lambda: sys.stdout)

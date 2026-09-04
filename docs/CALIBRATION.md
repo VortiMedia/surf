@@ -20,7 +20,7 @@ them. The session audit tested each yearless date against the archive and found
 multiple surfable candidates every time, so those years are explicitly marked
 `UNANSWERABLE` rather than guessed.
 
-## Why 41 rows are worth more than they look
+## Why 42 rows are worth more than they look
 
 Past conditions anywhere are free (Open-Meteo Archive, back to 1940), so each
 row expands into swell height, period, direction, wind and tide for that hour.

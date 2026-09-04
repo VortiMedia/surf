@@ -33,6 +33,23 @@ def test_non_clustering_sessions_contradict_the_claim() -> None:
     assert entry.status == "contradicted"
 
 
+def test_known_violation_is_contradicted_even_when_another_metric_is_missing() -> None:
+    entries = build_lexicon((
+        sample("logable but clean", nearshore_height_m=0.5, wind_angle_deg=20),
+        sample("logable but clean", nearshore_height_m=None, wind_angle_deg=100),
+    ))
+    entry = next(item for item in entries if item.term == "logable but clean")
+    assert entry.status == "contradicted"
+
+
+def test_contradicted_mapping_is_not_applied_to_a_natural_phrase() -> None:
+    entries = build_lexicon((
+        sample("logable but clean", nearshore_height_m=0.5, wind_angle_deg=20),
+        sample("logable but clean", nearshore_height_m=0.6, wind_angle_deg=100),
+    ))
+    assert resolve_phrase("logable but clean", entries) == ()
+
+
 def test_sparse_or_unmeasurable_terms_stay_conventions() -> None:
     entries = build_lexicon((sample("walled out", peel_angle_deg=None),))
     entry = next(item for item in entries if item.term == "walled out")

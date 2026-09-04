@@ -79,8 +79,11 @@ def build_lexicon(
             if (result := constraint.matches(row.metrics)) is not None
         )
         expected = len(support) * len(spec.filters)
-        if len(support) >= minimum_samples and len(checks) == expected:
-            status: LexiconStatus = "measurement" if all(checks) else "contradicted"
+        known_violation = any(result is False for result in checks)
+        if len(support) >= minimum_samples and known_violation:
+            status: LexiconStatus = "contradicted"
+        elif len(support) >= minimum_samples and len(checks) == expected:
+            status = "measurement"
         else:
             status = "convention"
         out.append(replace(spec, supporting_sessions=len(support), status=status))
@@ -93,7 +96,7 @@ def resolve_phrase(
     """Resolve every known term in a natural phrase, longest first."""
     found: list[PhysicalFilter] = []
     for entry in sorted(entries, key=lambda item: len(item.term), reverse=True):
-        if _mentioned(entry.term, phrase):
+        if entry.status != "contradicted" and _mentioned(entry.term, phrase):
             found.extend(entry.filters)
     return tuple(found)
 

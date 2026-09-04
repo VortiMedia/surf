@@ -23,6 +23,28 @@ def _field(day: date) -> WaveField:
     )
 
 
+def test_surfable_predicate_rejects_zero_period_and_zero_height() -> None:
+    from surf.sessions import _wave_field_is_surfable
+
+    assert not _wave_field_is_surfable(
+        WaveField(
+            datetime.now(timezone.utc),
+            (SwellPartition(1.0, 0.0, 180.0, "swell"),),
+            total_height_m=1.0,
+            total_period_s=0.0,
+        )
+    )
+    assert not _wave_field_is_surfable(
+        WaveField(
+            datetime.now(timezone.utc),
+            (SwellPartition(0.0, 10.0, 180.0, "swell"),),
+            total_height_m=0.0,
+            total_period_s=10.0,
+        )
+    )
+    assert _wave_field_is_surfable(_field(date(2024, 2, 29)))
+
+
 class DayArchive:
     name = "audit-test"
 

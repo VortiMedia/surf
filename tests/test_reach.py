@@ -79,13 +79,13 @@ def test_reach_degrades_when_a_qualifying_session_is_not_cached(tmp_path):
     assert "missing conditions" in reach.render()
 
 
-def test_partial_reach_still_enforces_the_known_ceiling() -> None:
+def test_partial_reach_is_explicitly_degraded_and_does_not_guess_a_ceiling() -> None:
     reach = Reach(mark_m=1.5, status="degraded", dropped=("one session missing",))
-    assert reach.ceiling_m == 2.0
+    assert reach.ceiling_m is None
     assert reach.accepts(1.9)
-    assert not reach.accepts(2.1)
-    assert not reach.accepts(None)
-    assert "known evidence" in reach.render()
+    assert reach.accepts(2.1)
+    assert reach.accepts(None)
+    assert "no ceiling enforced" in reach.render()
 
 
 def test_session_add_fetches_a_qualifying_row_and_ratchets_without_a_size_field(

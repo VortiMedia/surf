@@ -34,7 +34,7 @@ class Reach:
 
     @property
     def ceiling_m(self) -> float | None:
-        if self.mark_m is None:
+        if self.mark_m is None or self.status != "ok":
             return None
         return self.mark_m + self.step_m
 
@@ -60,7 +60,7 @@ class Reach:
         if self.dropped:
             text += "; dropped " + ", ".join(self.dropped)
         if self.status != "ok":
-            text += "; ceiling uses known evidence while missing sessions remain dropped"
+            text += "; no ceiling enforced while qualifying evidence is incomplete"
         return text
 
 
