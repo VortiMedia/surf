@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from statistics import median
+from typing import Sequence
 
 from .sources import Http, Reading, SourceDown, explain, now
 from .waves import SwellPartition, WaveField, Wind
@@ -53,6 +55,8 @@ def realtime_url(buoy_id: str, ext: str) -> str:
 
 def _to_deg(raw: str) -> float | None:
     """Directions arrive as degrees in `.txt` and as compass points in `.spec`."""
+    if raw in {MISSING, "999", "999.0", "99", "99.0"}:
+        return None
     if raw in _CARDINAL_DEG:
         return _CARDINAL_DEG[raw]
     try:
@@ -62,7 +66,8 @@ def _to_deg(raw: str) -> float | None:
 
 
 def _to_float(raw: str) -> float | None:
-    if raw == MISSING:
+    # Historical standard-met files use numeric sentinels as well as `MM`.
+    if raw in {MISSING, "99", "99.0", "999", "999.0", "9999", "9999.0"}:
         return None
     try:
         return float(raw)
@@ -142,6 +147,53 @@ def parse_txt(text: str, buoy_id: str = "") -> tuple[WaveField, ...]:
             )
         )
     return tuple(sorted(fields, key=lambda f: f.time, reverse=True))
+
+
+def centred_median_peak(
+    fields: Sequence[WaveField],
+    *,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> WaveField | None:
+    """Return the strongest three-sample centred-median wave.
+
+    The median is applied to Hs only; period and direction remain the centre
+    sample's measured values. Samples must be adjacent records (no gaps), so a
+    missing report cannot be silently bridged.
+    """
+    ordered = sorted(
+        (field for field in fields if field.total_height_m is not None),
+        key=lambda field: field.time,
+    )
+    candidates: list[tuple[float, WaveField]] = []
+    for before, centre, after in zip(ordered, ordered[1:], ordered[2:]):
+        if after.time - before.time > timedelta(hours=1):
+            continue
+        if start is not None and centre.time < start:
+            continue
+        if end is not None and centre.time > end:
+            continue
+        heights = (before.total_height_m, centre.total_height_m, after.total_height_m)
+        assert all(height is not None for height in heights)
+        smoothed = float(median(heights))
+        partition = centre.primary
+        partitions = (
+            (SwellPartition(smoothed, partition.period_s, partition.direction_deg, partition.kind),)
+            if partition is not None else centre.partitions
+        )
+        candidates.append((smoothed, WaveField(
+            time=centre.time,
+            partitions=partitions,
+            wind=centre.wind,
+            total_height_m=smoothed,
+            total_period_s=centre.total_period_s,
+            model=centre.model,
+        )))
+    # On a flat median plateau report the first surviving peak, not a later
+    # window that happens to share its value.
+    if not candidates:
+        return None
+    return max(candidates, key=lambda pair: (pair[0], -pair[1].time.timestamp()))[1]
 
 
 def parse_spec(text: str, buoy_id: str = "") -> tuple[SpecRow, ...]:

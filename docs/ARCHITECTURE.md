@@ -148,11 +148,11 @@ Both sit *below* sessions on the evidence ladder. An archetype says what a wave
 is. The log says what the user likes. Conflating them recommends Shipsterns to
 someone whose own log carries the note "do NOT use as evidence he wants slabs."
 
-Open: `RECON.md` has 44091 Barnegat maxing at 24.5 ft / 11.8 s on 2016-01-23,
-while 44008 Nantucket hit 34.3 ft / 14.8 s on 2023-12-19 — the Monster Monday
-storm. Whether NJ's best-known modern event was also its biggest offshore is
-unsettled and needs a direct 44091 pull. Belmar carries 27.1 ft of Hs at 100 m,
-so NJ is not depth-capped at that size; the ocean is the constraint, not the sand.
+The direct 44091 annual pull in `RECON.md` resolves the comparison: Monster
+Monday reached 19.1 ft / 12.5 s on 2023-12-18, below the 24.5 ft / 11.8 s
+2016-01-23 all-time value. 44008 Nantucket still hit 34.3 ft / 14.8 s on
+2023-12-19. Belmar carries 27.1 ft of Hs at 100 m, so NJ is not depth-capped at
+that size; the ocean is the constraint, not the sand.
 
 ### REACH is a separate axis
 

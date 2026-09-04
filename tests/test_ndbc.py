@@ -13,6 +13,7 @@ from surf.ndbc import (
     MISSING,
     NdbcObservations,
     NdbcParseError,
+    centred_median_peak,
     parse_spec,
     parse_txt,
     realtime_url,
@@ -31,6 +32,18 @@ TXT = """\
 #yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft
 2026 09 03 07 00 225  5.0  6.0   1.2     6   4.6 137     MM  22.5  23.0    MM   MM   MM    MM
 2026 09 03 06 30  MM   MM   MM   1.2     6   4.5 134     MM  21.9  23.0    MM   MM   MM    MM
+"""
+
+HISTORICAL_44091 = """\
+#YY  MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS TIDE
+#yr  mo dy hr mn degT m/s m/s m sec sec degT hPa degC degC degC mi ft
+2023 12 18 11 26 999 99.0 99.0 5.22 12.50 12.50 123 9999.0 999.0 6.5 999.0 99.0 99.00
+2023 12 18 11 56 999 99.0 99.0 5.82 11.76 12.50 121 9999.0 999.0 6.5 999.0 99.0 99.00
+2023 12 18 12 26 999 99.0 99.0 5.95 11.76 12.50 128 9999.0 999.0 6.5 999.0 99.0 99.00
+2023 12 19 01 26 999 99.0 99.0 3.79 14.29 14.29 123 9999.0 999.0 6.5 999.0 99.0 99.00
+2023 12 19 04 26 999 99.0 99.0 3.41 15.38 15.38 114 9999.0 999.0 6.5 999.0 99.0 99.00
+2023 12 19 04 56 999 99.0 99.0 3.62 13.33 13.33 139 9999.0 999.0 6.5 999.0 99.0 99.00
+2023 12 19 05 26 999 99.0 99.0 3.51 15.38 15.38 101 9999.0 999.0 6.5 999.0 99.0 99.00
 """
 
 OBSERVED_AT = datetime(2026, 9, 3, 7, 0, tzinfo=timezone.utc)
@@ -112,6 +125,42 @@ def test_month_column_is_not_confused_with_the_missing_token():
 def test_rows_come_back_newest_first():
     times = [r.field.time for r in parse_spec(SPEC)]
     assert times == sorted(times, reverse=True)
+
+
+def test_historical_header_parser_and_centred_median_peak():
+    """The annual file's named columns survive its numeric missing sentinels."""
+    fields = parse_txt(HISTORICAL_44091, "44091")
+    assert len(fields) == 7
+    assert fields[-1].wind is None  # WDIR/WSPD 999/99 are missing, not wind
+    dec19 = [field for field in fields if field.time.date().isoformat() == "2023-12-19"]
+    raw = max(dec19, key=lambda field: field.total_height_m or 0.0)
+    assert raw.total_height_m == pytest.approx(3.79)
+
+    peak = centred_median_peak(
+        fields,
+        start=datetime(2023, 12, 19, tzinfo=timezone.utc),
+        end=datetime(2023, 12, 19, 23, 59, tzinfo=timezone.utc),
+    )
+    assert peak is not None
+    assert peak.time == datetime(2023, 12, 19, 4, 56, tzinfo=timezone.utc)
+    assert peak.total_height_m == pytest.approx(3.51)
+    assert peak.total_period_s == pytest.approx(13.33)
+    assert peak.primary is not None and peak.primary.direction_deg == pytest.approx(139.0)
+
+    storm = centred_median_peak(
+        fields,
+        start=datetime(2023, 12, 18, tzinfo=timezone.utc),
+        end=datetime(2023, 12, 18, 23, 59, tzinfo=timezone.utc),
+    )
+    assert storm is not None
+    assert storm.total_height_m == pytest.approx(5.82)
+
+
+def test_centred_median_does_not_bridge_a_missing_sample():
+    fields = parse_txt(HISTORICAL_44091, "44091")
+    # Removing the 04:56 record leaves a 90-minute gap around 04:26/05:26.
+    peak = centred_median_peak(tuple(field for field in fields if field.time.minute != 56))
+    assert peak is None
 
 
 def test_a_non_ndbc_body_raises_rather_than_parsing_to_silence():

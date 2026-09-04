@@ -26,6 +26,7 @@ from .call import (
     signals_for,
 )
 from .forecast import ForecastService, Sources, SpotForecast
+from .evidence import default_evidence
 from .geometry import GeometryCache, beach_slope
 from .ndbc import NdbcObservations
 from .open_meteo import MarineModelSet, OpenMeteoArchive
@@ -378,6 +379,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
         heads_up_days=heads_up,
         daylight_only=not args.any_hour,
         readings=readings,
+        evidence=default_evidence(),
     )
     console.record(reading)
 

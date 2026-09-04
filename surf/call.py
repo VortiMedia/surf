@@ -7,6 +7,7 @@ from functools import lru_cache
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .daylight import Daylight, daylight
+from .evidence import EvidenceRecord
 from .response import Response
 from .score import NOMINAL_SLOPE, PLUNGING_BAND, Components, reference_field, score_hour
 from .sources import Reading
@@ -45,6 +46,8 @@ class Call:
     runners_up: tuple[Candidate, ...] = ()
     caveats: tuple[str, ...] = field(default_factory=tuple)
     horizon_note: str = ""
+    # Context only: reference evidence never enters Candidate.key.
+    evidence: tuple[EvidenceRecord, ...] = ()
 
 
 # Inside this many days the call is sharp: size, timing, a window.
@@ -411,6 +414,7 @@ def make_call(
     daylight_only: bool = True,
     neighbour: str = "",
     readings: Sequence[Reading] = (),
+    evidence: Sequence[EvidenceRecord] = (),
 ) -> Reading[Call]:
     """Commit to a spot, a day and a time — or say plainly that there is none.
 
@@ -476,6 +480,7 @@ def make_call(
         runners_up=runners,
         caveats=tuple(caveats),
         horizon_note=horizon,
+        evidence=tuple(evidence),
     )
 
     status = "degraded" if (dropped or caveats) else "ok"

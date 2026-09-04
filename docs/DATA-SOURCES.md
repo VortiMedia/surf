@@ -63,7 +63,9 @@ Twenty-plus years per buoy, gzipped, one row every 30–60 min. This is where an
 have no `mm` column, so every field after `hh` shifts one place left. Reading by
 fixed index then returns `GST` where `WVHT` was meant, which looks like a 16 m
 sea rather than a parse error — four Northeast buoys appeared to have recorded
-54.7 ft. Parse the `#YY MM DD hh mm WDIR ...` header line and map by name.
+54.7 ft. Parse the `#YY MM DD hh mm WDIR ...` header line and map by name. The
+historical files also use numeric missing sentinels (`99`, `999`, `9999`) as
+well as `MM`; all are dropped as missing before a peak is computed.
 
 **A single sample is not a wave.** The raw maximum at 44098 is 43.8 ft, one
 30-minute record between neighbours of 28.2 and 27.9 ft. Require a peak to
@@ -199,4 +201,3 @@ answer land-or-sea offline by point-in-polygon. That replaces two bathymetry
 calls per point with zero — 1,280 seaward normals resolved in 1.2 s. Unlike OSM
 `natural=coastline` (used for Ceará), Natural Earth carries no winding-order
 guarantee, so the seaward side must be probed rather than assumed.
-

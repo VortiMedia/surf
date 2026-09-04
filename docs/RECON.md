@@ -31,6 +31,20 @@ NDBC historical, header-parsed, 3-sample median. Sustained peaks, not spikes.
 | 44091 | Barnegat NJ | 24.5 ft | 11.8 s | 85° | 2016-01-23 |
 | 44017 | Montauk Point | 22.7 ft | 10.0 s | — | 2010-12-27 |
 
+### Correction — 44091 during Monster Monday
+
+The direct primary-source pull of the [44091 2023 annual standard
+meteorological file](https://www.ndbc.noaa.gov/data/historical/stdmet/44091h2023.txt.gz)
+was parsed by its `#YY MM DD hh mm ...` header, not fixed column positions. On
+2023-12-19 the raw daily maximum was **3.79 m / 12.4 ft**, but it was one sample.
+The required centred three-sample median gives **3.51 m / 11.5 ft at 13.33 s
+from 139° at 04:56Z**. The adjacent storm peak was on 2023-12-18: a sustained
+**5.82 m / 19.1 ft at 12.5 s from 121°** at 11:56Z. The earlier raw-peak
+number was wrong as an event maximum because it promoted a single record over
+the sustained signal; it remains here as the raw comparison, not the corrected
+record. The existing 2016 44091 all-time value of **24.5 ft** remains the
+largest sustained value in this ledger.
+
 The prime band of ADR-018 is rarer than it feels: 6–8 ft at 8–10 s runs 10.9
 d/yr at 44097, 9.0 at 44091, 5.9 at 44065, 5.8 at 44098. Rhode Island sees about
 five times New York's 10 ft+ traffic.

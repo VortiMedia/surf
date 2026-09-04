@@ -28,6 +28,7 @@ from surf.call import (
     window_hours,
     window_text,
 )
+from surf.evidence import default_evidence
 
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)   # 08:00 EDT — the fixtures
                                                           # must sit in daylight now that
@@ -111,6 +112,12 @@ def outlook(spot: Spot | None = None, **kwargs) -> SpotOutlook:
 def unwrap(reading: Reading[Call]) -> Call:
     assert reading.ok and reading.value is not None, reading.label()
     return reading.value
+
+
+def test_reference_evidence_is_attached_as_context_without_changing_call_path():
+    call = unwrap(make_call([outlook()], now=NOW, evidence=default_evidence()))
+    assert call.evidence == default_evidence()
+    assert call.winner.spot_id == "lido"
 
 
 def test_hours_by_time_transposes_models_into_hours():
