@@ -40,6 +40,7 @@ _TOOLS: tuple[dict[str, Any], ...] = (
                 "spot": {"type": "array", "items": {"type": "string"}, "description": "Spot names or ids."},
                 "days": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5},
                 "any_hour": _property("boolean", "Include dark hours in scoring."),
+                "want": _property("string", "Session-language physical filter."),
             },
             "additionalProperties": False,
         },

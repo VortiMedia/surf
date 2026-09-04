@@ -24,7 +24,7 @@ def test_tools_map_to_all_existing_cli_surfaces():
     ("name", "arguments", "expected"),
     [
         ("sources", {}, ["sources"]),
-        ("call", {"region": "US-NY", "spot": ["lido"], "days": 4, "any_hour": True}, ["call", "--region", "US-NY", "--spot", "lido", "--days", "4", "--any-hour"]),
+        ("call", {"region": "US-NY", "spot": ["lido"], "days": 4, "any_hour": True, "want": "grovel"}, ["call", "--region", "US-NY", "--spot", "lido", "--days", "4", "--any-hour", "--want", "grovel"]),
         ("spot", {"name": "lido", "days": 2}, ["spot", "lido", "--days", "2"]),
         ("climate", {"zone": "US-NY", "start": "2024-01-01", "end": "2024-01-31", "refresh": True}, ["climate", "--zone", "US-NY", "--start", "2024-01-01", "--end", "2024-01-31", "--refresh"]),
         ("lexicon", {"phrase": "grovel"}, ["lexicon", "grovel"]),
