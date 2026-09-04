@@ -38,6 +38,7 @@ from .call import (
 from .forecast import ForecastService, Sources, SpotForecast
 from .evidence import default_evidence
 from .geometry import GeometryCache, beach_slope
+from .lexicon import lexicon_from_log, resolve_phrase
 from .ndbc import NdbcObservations
 from .open_meteo import MarineModelSet, OpenMeteoArchive
 from .score import Components
@@ -387,6 +388,11 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
     outlooks, readings, _ = _fetch(console, spots, window)
     console.record(*readings)
     bands = bands_from_log(book)
+    entries = lexicon_from_log(book)
+    physical_filters = resolve_phrase(args.want, entries) if args.want else ()
+    if args.want and not physical_filters:
+        console.warn(f"no physical filter is known for {args.want!r}")
+        return EXIT_FAILED
     reading = make_call(
         outlooks,
         now=now,
@@ -396,6 +402,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
         readings=readings,
         evidence=default_evidence(),
         band_floors={spot.id: bands[spot.break_type].render() for spot in spots if spot.break_type in bands},
+        physical_filters=physical_filters,
     )
     console.record(reading)
 
@@ -522,6 +529,25 @@ def cmd_calibrate(args: argparse.Namespace, console: Console) -> int:
     if not report.passed:
         console.warn(f"{len(report.failed)} check(s) failed")
         return EXIT_FAILED
+    return EXIT_OK
+
+
+def cmd_lexicon(args: argparse.Namespace, console: Console) -> int:
+    """Show how session language becomes physical filters."""
+    entries = lexicon_from_log(console.spots())
+    wanted = tuple(
+        entry for entry in entries
+        if not args.phrase or entry.term in args.phrase.casefold()
+    )
+    if not wanted:
+        console.warn(f"no lexicon term in {args.phrase!r}")
+        return EXIT_FAILED
+    for entry in wanted:
+        filters = ", ".join(item.render() for item in entry.filters)
+        console.say(
+            f"{entry.term}: {entry.status} (n={entry.supporting_sessions}) "
+            f"-> {filters} — {entry.physics}"
+        )
     return EXIT_OK
 
 
@@ -925,6 +951,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="score hours in the dark too; by default the call only offers hours you "
              "could actually surf, computed per spot and date",
     )
+    call.add_argument("--want", default="", help="session-language physical filter, e.g. grovel")
     call.set_defaults(run=cmd_call)
 
     spot = sub.add_parser("spot", help="one spot in depth: geometry, provenance, what is missing")
@@ -940,6 +967,10 @@ def build_parser() -> argparse.ArgumentParser:
     climate.add_argument("--end", required=True, help="last date, YYYY-MM-DD")
     climate.add_argument("--refresh", action="store_true", help="rebuild the derived climate cache")
     climate.set_defaults(run=cmd_climate)
+
+    lexicon = sub.add_parser("lexicon", help="map session language to physical filters")
+    lexicon.add_argument("phrase", nargs="?", default="", help="term or natural phrase; omit for all")
+    lexicon.set_defaults(run=cmd_lexicon)
 
     terrain = sub.add_parser(
         "terrain", help="scan zone bathymetry for stable terrain-object candidates"

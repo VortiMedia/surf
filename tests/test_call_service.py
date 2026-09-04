@@ -29,6 +29,7 @@ from surf.call import (
     window_text,
 )
 from surf.evidence import default_evidence
+from surf.lexicon import PhysicalFilter
 
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)   # 08:00 EDT — the fixtures
                                                           # must sit in daylight now that
@@ -211,6 +212,27 @@ def test_call_commits_to_a_spot_a_day_and_a_time():
     assert NOW < call.winner.at <= NOW + timedelta(days=SHARP_DAYS)
     assert "UTC" in call.window
     assert 2 <= len(call.signals) <= MAX_SIGNALS
+
+
+def test_physical_filter_is_applied_before_ranking_and_unknown_does_not_pass():
+    small = make_spot("small")
+    large = make_spot("large")
+    call = unwrap(make_call(
+        [
+            outlook(small, forecasts=(forecast(small.id, day=1, height=0.6),)),
+            outlook(large, forecasts=(forecast(large.id, day=1, height=1.8),)),
+        ],
+        now=NOW,
+        physical_filters=(PhysicalFilter("nearshore_height_m", maximum=0.8),),
+    ))
+    assert call.winner.spot_id == "small"
+
+    missing = make_call(
+        [outlook()], now=NOW,
+        physical_filters=(PhysicalFilter("peel_angle_deg", maximum=30),),
+    )
+    assert missing.value is None
+    assert "unknowns do not pass" in " ".join(missing.dropped)
 
 
 def test_call_always_names_a_falsifier():

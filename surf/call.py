@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .daylight import Daylight, daylight
 from .evidence import EvidenceRecord
+from .lexicon import PhysicalFilter, apply_filters, metrics_for_hour
 from .response import Response
 from .score import NOMINAL_SLOPE, PLUNGING_BAND, Components, reference_field, score_hour
 from .sources import Reading
@@ -420,6 +421,7 @@ def make_call(
     readings: Sequence[Reading] = (),
     evidence: Sequence[EvidenceRecord] = (),
     band_floors: Mapping[str, str] | None = None,
+    physical_filters: Sequence[PhysicalFilter] = (),
 ) -> Reading[Call]:
     """Commit to a spot, a day and a time — or say plainly that there is none.
 
@@ -438,6 +440,14 @@ def make_call(
             outlook, start=start, end=sharp_end, daylight_only=daylight_only
         )
         dropped.extend(lost)
+        if physical_filters:
+            before = len(hours)
+            hours = apply_filters(hours, physical_filters, metrics_for_hour)
+            if len(hours) < before:
+                dropped.append(
+                    f"{outlook.spot.id}: {before - len(hours)} hours did not satisfy "
+                    "the requested physical filter (unknowns do not pass)"
+                )
         if hours:
             by_spot[outlook.spot.id] = (outlook, hours)
 
