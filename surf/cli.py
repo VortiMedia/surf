@@ -5,7 +5,7 @@ import re
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, TextIO
@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .bathymetry import NceiBathymetry
 from .calibrate import ConditionCache, calibrate
+from .climate import ClimateResult, ClimateSource, OpenMeteoClimate, build_result, cache_path, load_cache, save_cache
 from .call import (
     HEADS_UP_DAYS,
     SHARP_DAYS,
@@ -179,6 +180,7 @@ class Console:
     sources: Sources | None = None
     book: SpotBook | None = None
     archive: Archive | None = None
+    climate_source: ClimateSource | None = None
     clock: Callable[[], datetime] = _now
     surfline: bool | None = None
     # Commands may leave their source receipt here for another transport (MCP,
@@ -566,6 +568,79 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
+def _render_climate(result: ClimateResult, console: Console) -> None:
+    console.say(f"CLIMATE  {result.zone}  {result.start} to {result.end}")
+    console.say(f"  source         {result.source}:{result.status}")
+    console.say(f"  fetched_at     {result.fetched_at.isoformat()}")
+    if result.note:
+        console.say(f"  basis          {result.note}")
+    console.say(f"  terrain shelter {result.terrain_shelter}")
+    for dropped in result.dropped:
+        console.say(f"  dropped         {dropped}")
+    for cell in result.cells:
+        console.say()
+        console.say(f"  CELL {cell.spot_id}")
+        console.say(f"    season             {cell.season}")
+        console.say(f"    shared timestamps  {cell.shared_hours} hours")
+        console.say(f"    complete overlap   {cell.overlap_hours} hours")
+        console.say(f"    days               {cell.days}")
+        console.say(f"    independent events {cell.independent_events}")
+        console.say(f"    duration           {cell.total_duration_hours:.1f} hours total, {cell.mean_duration_hours:.1f} hours/event")
+        local = ", ".join(f"{hour:02d}:00 ({count})" for hour, count in cell.local_hours) or "none"
+        console.say(f"    local hour         {local}")
+        console.say(f"    years              {len(cell.years_with_event)}/{cell.years_total} with an event ({cell.fraction_years:.1%})")
+        if cell.rejected:
+            console.say(
+                f"    REJECTED for season: no complete swell/wind overlap "
+                f"({cell.overlap_hours} of {cell.shared_hours} shared hours)"
+            )
+    if not result.cells:
+        console.say("  no cells answered")
+
+
+def cmd_climate(args: argparse.Namespace, console: Console) -> int:
+    """Measure complete swell/wind hours for every spot cell in a zone."""
+    start, end = date.fromisoformat(args.start), date.fromisoformat(args.end)
+    if end < start:
+        raise ValueError("--end must not precede --start")
+    book = console.spots()
+    spots = book.in_zone(args.zone)
+    if not spots:
+        console.warn(f"no spots in zone {args.zone!r}")
+        return EXIT_FAILED
+    path = cache_path(args.zone, start, end)
+    if path.exists() and not args.refresh:
+        result = load_cache(path, book)
+        _render_climate(result, console)
+        return EXIT_OK if result.status in ("ok", "degraded") else EXIT_FAILED
+
+    source = console.climate_source or OpenMeteoClimate(Http())
+    samples: dict[str, tuple] = {}
+    statuses: list[str] = []
+    fetched_at = console.clock()
+    dropped: list[str] = []
+    for spot in spots:
+        reading = source.cell(spot, start, end)
+        statuses.append(reading.status)
+        fetched_at = max(fetched_at, reading.fetched_at)
+        if reading.value is not None:
+            samples[spot.id] = reading.value
+        if reading.dropped:
+            dropped.extend(f"{spot.id}: {item}" for item in reading.dropped)
+    status = "ok" if all(s == "ok" for s in statuses) else (
+        "failed" if all(s in ("failed", "skipped") for s in statuses) else "degraded"
+    )
+    result = build_result(
+        args.zone, spots, samples, start, end,
+        source=source.name, status=status, fetched_at=fetched_at,
+        note=f"{len(spots)} zone cells; wave and wind joined on exact UTC timestamps",
+        dropped=tuple(dropped),
+    )
+    save_cache(path, result, samples)
+    _render_climate(result, console)
+    return EXIT_FAILED if result.status == "failed" else EXIT_OK
+
+
 def _check_date(raw: str) -> str:
     """Accept exactly what the loader accepts: `2025-09-30`, `2025-09-30?` and
     `????-03-03`. Rejected here rather than written, because `parse_date` answers
@@ -729,6 +804,15 @@ def build_parser() -> argparse.ArgumentParser:
     spot.add_argument("name", help="spot id, name or alias")
     spot.add_argument("--days", type=int, default=3, help="days to fetch")
     spot.set_defaults(run=cmd_spot)
+
+    climate = sub.add_parser(
+        "climate", help="measure shared historical swell/wind overlap for a zone"
+    )
+    climate.add_argument("--zone", required=True, help="exact zone identity from data/spots.tsv")
+    climate.add_argument("--start", required=True, help="first date, YYYY-MM-DD")
+    climate.add_argument("--end", required=True, help="last date, YYYY-MM-DD")
+    climate.add_argument("--refresh", action="store_true", help="rebuild the derived climate cache")
+    climate.set_defaults(run=cmd_climate)
 
     calibrate_cmd = sub.add_parser("calibrate", help="check the model against the session log")
     calibrate_cmd.add_argument(

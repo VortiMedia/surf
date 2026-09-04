@@ -202,14 +202,14 @@ def test_the_whole_log_is_accounted_for(log) -> None:
 def test_uncertainty_is_kept_not_guessed(log) -> None:
     by_raw = {(s.raw_date, s.raw_spot): s for s in log}
 
-    hard = by_raw[("2025-09-30", "Spring Lake NJ")]
+    hard = by_raw[("2025-09-30", "spring-lake")]
     assert hard.on == date(2025, 9, 30) and hard.date_uncertain is False
     assert hard.hour == 8 and hard.time_uncertain is True   # "08:00?"
 
-    flagged = by_raw[("2025-08-05?", "Bay Head NJ")]
+    flagged = by_raw[("2025-08-05?", "bay-head")]
     assert flagged.on == date(2025, 8, 5) and flagged.date_uncertain is True
 
-    yearless = by_raw[("????-03-03", "Lido Beach NY?")]
+    yearless = by_raw[("????-03-03", "lido-beach")]
     assert yearless.on is None and yearless.date_uncertain is True
     assert yearless.spot_id == "lido-beach"                  # spot still resolves
     assert yearless.usable_for_check is False
@@ -217,14 +217,14 @@ def test_uncertainty_is_kept_not_guessed(log) -> None:
 
 def test_vague_times_do_not_become_invented_hours(log) -> None:
     by_raw = {(s.raw_date, s.raw_spot): s for s in log}
-    early = by_raw[("2022-07-29", "South Shore Beach, Little Compton RI")]
+    early = by_raw[("2022-07-29", "little-compton")]
     assert early.raw_time == "early"
     assert early.hour is None and early.time_uncertain is True
 
-    dashed = by_raw[("2022-09-10", "Point Judith RI")]
+    dashed = by_raw[("2022-09-10", "point-judith")]
     assert dashed.hour is None and dashed.time_uncertain is True
 
-    exact = by_raw[("2024-04-04", "Belmar NJ")]
+    exact = by_raw[("2024-04-04", "belmar")]
     assert exact.hour == 6 and exact.time_uncertain is False
 
 

@@ -35,6 +35,7 @@ a rating back.
 | `surf sources` | Preflight every source and print status per source. Run this first when anything looks wrong. |
 | `surf call [--region R] [--days N]` | The product. One recommendation across the region and window. |
 | `surf spot <name>` | One spot in depth: components, geometry, provenance, what is missing. |
+| `surf climate --zone Z --start YYYY-MM-DD --end YYYY-MM-DD` | Measure historical swell/wind overlap per zone cell; uses the derived cache in `data/climate/`. Add `--refresh` to rebuild it. |
 | `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component. |
 | `surf geometry [--write]` | Derive beach slopes from NCEI bathymetry. Read-only without `--write`. Until it has run, BARREL scores off a nominal slope everywhere alike. |
 | `surf session add` | Append a row to `data/sessions.tsv`. |
@@ -241,3 +242,12 @@ ASCII is for magnitude only — one axis, sorted, bars proportional to a number.
 Do not draw coastline schematics, wind roses or propagation maps; David on one:
 "this looks like shit." Geometry is a sentence: "106 deg into a 95 deg shore
 normal is 11 deg off-axis, so Plum Island takes it nearly square."
+
+`surf climate` is the seasonal screen. It joins swell and wind at the same UTC
+timestamps, then reports complete overlap hours, independent events, duration,
+season, local hour and the fraction of years with an event. A season with no
+complete overlap is rejected even when its swell-only climate looks good. The
+archive result is cached under `data/climate/` and carries source, status and
+`fetched_at`; this is derived, rebuildable data, not another source-of-truth
+file. Coarse regional wind cannot resolve terrain shelter, so sheltered spots
+are marked unverified rather than scored bad.

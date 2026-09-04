@@ -431,7 +431,7 @@ def test_every_subcommand_is_wired():
     parser = cli.build_parser()
     actions = [a for a in parser._actions if getattr(a, "choices", None) and hasattr(a.choices, "keys")]
     assert set(actions[0].choices) == {
-        "sources", "call", "spot", "calibrate", "session", "geometry", "exposure",
+        "sources", "call", "spot", "climate", "calibrate", "session", "geometry", "exposure",
     }
 
 
