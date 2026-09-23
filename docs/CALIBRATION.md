@@ -168,3 +168,105 @@ other — the failure recorded in `RECON.md`.
 
 Sub-3 ft is a grovel in every row that has one; the notes say "barely rippable"
 and "grovel", and none rates above 3.
+
+## The wrap score did not find what David's eye found
+
+**2026-09-04.** `surf/wrapmap.py` scores each 200 m of coast by how fast
+exposure changes along the shore, on the reasoning that a sharp gradient means
+refraction and refraction means a peeling wave. Tested against eleven zones
+David marked by hand from satellite imagery, it fails.
+
+Nine of his eleven marks score **wrap ≤ 0.20**, the band the map paints as
+"flat, straight beach". Taíba — a spot he has surfed and rates as working all
+year — sits at exposure 0.99, wrap 0.13. Mundaú reads 0.95 / 0.08. Only the
+Jeri mark, at 0.38, scores as anything.
+
+The metric is not wrong so much as aimed at the wrong layer. It sees the plan
+shape of the shoreline and nothing else. What David is marking is **sea floor**
+— sand bars, reef outcrops and a slab — which is invisible to a coastline
+polygon by construction. Taíba reads as plain open beach because the thing that
+makes it break is underwater.
+
+So: do not use wrap as a spot finder on a straight coast. It ranks headlands
+and it is honest about headlands, and Jeri Point is the one place it and David
+agree. Finding the rest needs a layer that sees the bottom — imagery, or
+bathymetry finer than the 463 m grid, and `RECON.md` records that Sentinel-2
+can barely see this coast during the months that matter.
+
+The earlier claim in this session that the whole-coast scan had "found" the
+Flecheiras cluster was too generous: the model's high-wrap segment is 700 m
+from his mark, and the segment he actually marked scores 0.19.
+
+## The BARREL axis is measuring the wrong thing, and the literature says so
+
+**2026-09-04.** The session log already reports `rho(rating, barrel) = -0.07`
+against `rho(rating, size) = +0.60`, so the Iribarren band in `score.py` carries
+no signal about the axis it is named for. The surfing-science literature says
+why. Mead and Black (2001) reject the surf-similarity parameter for surfing
+waves explicitly — it describes every breaker from spilling to collapsing and is
+too general to rank rides — and replace it with a field measurement over 28
+world-class breaks: the **orthogonal seabed gradient** predicts the vortex ratio
+of the plunging wave, which is the shape of the barrel.
+
+    Y = 0.065 X + 0.821        R² = 0.71
+
+`Y` is the vortex ratio, `X` the orthogonal seabed gradient. Their published
+classification schedule runs extreme 1.6–1.9, very high 1.9–2.2, high 2.2–2.5,
+medium/high 2.5–2.8, medium 2.8–3.1, and a **low** ratio is the violent barrel.
+Inverting the fit against that schedule puts the classes at X = 12–17, 17–21,
+21–26, 26–30 and 30–35, which is self-consistent only if `X` is the gradient
+*denominator* — a 1:X slope. That reading is what `surf/tube.py` implements. It
+was not read out of the paper directly and the units are an inference from the
+two published numbers agreeing; treat it as such.
+
+The relation is a useful sanity check on its own. A 1:33 sand beach — the
+`NOMINAL_SLOPE` this repo assumes where nothing is measured — gives Y = 2.97,
+the mild end of "medium". Belmar's measured 1:38 gives 3.29, off the bottom of
+the schedule entirely. That is the same verdict the log's own language gives
+those spots: weak tubes, not barrels.
+
+## The panel: seabed gradient separates tubes from mush, but only above ~10 m DEM
+
+**2026-09-04.** Held-out test, 29 named breaks the model has never seen, split
+into world-class tube breaks and breaks nobody travels to for a barrel. The
+statistic is exactly what `surf tube` ships: snap to the nearest 2–8 m cell
+within 400 m, then take the **median** seabed gradient of every cell between 1
+and 12 m of water in a 360 m box. Median, not a high percentile — the tail of a
+coastal gradient distribution is cliff and rock platform, and on the 90th
+percentile Bondi and Kommetjie read "extreme".
+
+Three coordinates were rejected outright with no 2–8 m cell within 400 m (The
+Box, Mullaghmore, Spring Lake). That is a rejection of the coordinate, not of
+the break.
+
+| DEM | source | n barrel | n control | AUC |
+|---|---|---:|---:|---:|
+| ~3.4 m | NCEI US mosaic | 4 | 5 | **1.000** |
+| ~61 m | GMRT GridServer | 10 | 7 | **0.500** |
+
+At 3.4 m the separation is total and the gap is wide: Ala Moana 1:15, Waimea
+shorebreak 1:20, Pipeline 1:26, Backdoor 1:37, against Belmar 1:62,
+Waikiki Canoes 1:65, Cocoa Beach 1:67, Waikiki 1:79, Lido Beach 1:105. Nine
+points is encouraging, not proof.
+
+At 61 m it is a coin toss, and the failures are not subtle. Muizenberg — the
+beginner beach in Cape Town — reads 1:12, steeper than any barrel in the panel
+bar Shipstern Bluff. Thurso East reads 1:60 and Skeleton Bay 1:397. A 61 m cell
+averages the ledge into the sand either side of it, exactly as `CLAUDE.md`
+already warns, and the number that comes out is not a weak version of the right
+answer; it is unrelated to it.
+
+So `surf tube` reports the gradient at any resolution the grid supports and
+emits a breaker-intensity class only below 10 m. Between 10 m and 100 m the
+measurement stands and the claim is withheld.
+
+**The panel also shows what this screen structurally cannot find.** Skeleton
+Bay (1:397), Supertubos (1:87) and Kirra (1:49) are among the best tubes on
+earth and all three sit on flat sand. Their barrel comes from a low **peel
+angle** — a bar or spit lying oblique to the swell so the break runs away down
+the line — not from a steep floor. That is Mead and Black's other parameter and
+this screen is blind to it. A separate attempt to measure peel angle from the
+same 61 m grid failed worse than the gradient did: the per-cell isobath
+orientation on a sandy bottom is DEM noise, and the metric ranked Malibu and
+Doheny above every barrel in the panel. Both halves of the barrel problem need
+a finer bottom than the free global grid provides.
