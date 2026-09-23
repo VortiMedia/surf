@@ -178,6 +178,49 @@ one request per ~16 s kept a 600-point 1-year sweep at **zero 429s**, against si
 backoff stalls when the same sweep ran unpaced — collisions cost wall clock, not
 quota, so pacing is worth it purely for time.
 
+## Imagery — which source for what
+
+Checked against the live catalogues on 2026-09-23. Pixel size decides what a
+source can show. Capture date decides whether the frame answers the question.
+Check both before you use a frame.
+
+| Source | Pixel | Dates | Coverage | Access | Use it for |
+|---|---|---|---|---|---|
+| Sentinel-2 L2A | 10 m | every ~5 days since 2017 | global | free, no key: Element84 Earth Search, Planetary Computer | waterline against tide, breaker lines, clouds. Too coarse for reef or bar shape. |
+| NAIP | 0.6 m (0.5-1.0 m before 2019) | one flight per state every 2-3 years, leaf-on summer | US only | free, no key: Planetary Computer | plan-view reef, bar and rock shape in the US |
+| Esri World Imagery Wayback | 0.15-1.2 m, varies by tile | 196 releases, 2014-02-20 to 2026-08-05 | global | free tiles, no key | sub-metre plan view outside the US, and a dated before/after series |
+| Landsat C2 L2 | 30 m | every 8-16 days since 1982 | global | free, no key | long shoreline change only |
+| Sentinel-1 GRD | ~10 m radar | every 6-12 days | global | free, no key | sees through cloud. Not tested here for break signatures. |
+| Google Maps / Google Earth | sub-metre | one mosaic; the capture date is not your choice | global | Google Earth Pro is free but manual; Map Tiles API needs a key and billing | looking and drawing by hand. The mosaic is sharp but usually not from the date you need, and its terms restrict bulk download. |
+| PlanetScope | ~3 m | daily | global | paid licence | waterline against tide on a macrotidal coast |
+
+**Sentinel-2 is the only free source that shows a chosen day.** Everything
+sharper is a snapshot someone else dated. That is why the Jeri waterline work
+uses Sentinel-2, and why it stalls at 10 m.
+
+**NAIP on Planetary Computer is public.** Search
+`https://planetarycomputer.microsoft.com/api/stac/v1/search` with
+`collections: ["naip"]`. The `image` asset is a Cloud-Optimized GeoTIFF with
+RGB and near-infrared bands, readable without a SAS token (tested 2026-09-23).
+Element84 lists the same NAIP items, but its hrefs point to the
+`s3://naip-analytic` requester-pays bucket, so reading them needs an AWS
+account and costs money. Use Planetary Computer. Year alone is not a capture
+date. Take the date from `datetime`, e.g. NY 2022 was flown on 2022-10-22.
+
+**Wayback tiles have a release date, not a capture date.** Each release mosaics
+imagery from many dates. The capture date and source for one point come from
+the metadata service named in that release's `metadataLayerUrl` in
+`https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json`.
+Call `identify` on it with the point. The answer gives `SRC_DATE`, `SRC_RES`
+and `SRC_DESC`. At 41.58,-73.92 the 2026-08-05 release returned
+`SRC_DATE 20250409`, `SRC_RES 0.1524`, `SRC_DESC Dutchess County Orthos`. The
+same call against older releases dates each change in a before/after series.
+Record the capture date, not the release date.
+
+**Imagery frames are not committed.** `data/imagery/` is gitignored. A frame
+that matters is recorded in `docs/RECON.md` with source, capture date and
+pixel size so anyone can fetch it again.
+
 ## Element84 Earth Search — Sentinel-2 catalogue and imagery
 
 `https://earth-search.aws.element84.com/v1/search`, collection
