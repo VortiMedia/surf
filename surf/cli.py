@@ -62,6 +62,7 @@ from .snapshots import (
 )
 from .sessions import (
     SessionFileError,
+    SessionQuestion,
     append_session,
     audit_sessions,
     default_sessions_path,
@@ -573,6 +574,20 @@ def cmd_lexicon(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
+def _say_questions(questions: Sequence[SessionQuestion], console: Console) -> None:
+    """One line per distinct question: a row asked twice reads as two problems."""
+    seen: set[tuple[str, str, str]] = set()
+    for question in questions:
+        key = (question.raw_date, question.raw_spot, question.question)
+        if key in seen:
+            continue
+        seen.add(key)
+        console.say(
+            f"  row {question.row} {question.raw_date}\t{question.raw_spot}: "
+            f"{question.question}"
+        )
+
+
 def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
     """Canonicalize spot ids and make only evidence-backed log repairs."""
     archive: Archive | None = console.archive
@@ -615,16 +630,7 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
         console.say("repairs: none")
     if report.questions:
         console.say("questions")
-        seen: set[tuple[str, str, str]] = set()
-        for question in report.questions:
-            key = (question.raw_date, question.raw_spot, question.question)
-            if key in seen:
-                continue
-            seen.add(key)
-            console.say(
-                f"  row {question.row} {question.raw_date}\t{question.raw_spot}: "
-                f"{question.question}"
-            )
+        _say_questions(report.questions, console)
     else:
         console.say("questions: none")
     if report.missing_regime:
@@ -633,16 +639,7 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
             console.say(f"  {session.raw_date}\t{session.raw_spot}")
     if report.unanswerable:
         console.say("permanent unanswerables")
-        seen: set[tuple[str, str, str]] = set()
-        for question in report.unanswerable:
-            key = (question.raw_date, question.raw_spot, question.question)
-            if key in seen:
-                continue
-            seen.add(key)
-            console.say(
-                f"  row {question.row} {question.raw_date}\t{question.raw_spot}: "
-                f"{question.question}"
-            )
+        _say_questions(report.unanswerable, console)
     hand = [s for s in report.after if "[hand:" in s.notes]
     if hand:
         console.say("hand resolutions")
