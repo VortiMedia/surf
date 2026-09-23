@@ -112,14 +112,22 @@ nothing but its own test.
 ## Data
 
 Open-Meteo Marine (four wave models) · Open-Meteo Archive (back to 1940) · NDBC
-buoys · NOAA CO-OPS tides · NOAA NCEI bathymetry. Endpoint quirks, including the
-model IDs that do not exist and the file that 404s, are in
+buoys · NOAA CO-OPS tides · NOAA NCEI bathymetry. Endpoint quirks, including
+the model IDs that do not exist and the file that 404s, are in
 [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md).
+
+`surf imagery` and `surf wave-state` read a frame manifest. They do not fetch
+imagery. `docs/DATA-SOURCES.md` compares the sources to fetch frames from —
+Sentinel-2, NAIP, Esri Wayback, Landsat, Sentinel-1, Google and Planet — by
+pixel size, capture dates, coverage and access.
+
+The domain words (zone, setup, spot, call, REACH, reading) are defined in
+[CONTEXT.md](CONTEXT.md).
 
 ## Tests
 
 ```sh
 pip install -e ".[dev]"
-pytest                    # 310 offline
+pytest                    # offline
 pytest -m network         # hits the live APIs
 ```

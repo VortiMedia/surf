@@ -354,6 +354,11 @@ of it. Its result is a geometric screen, not a surf forecast.
 
 ## Build order
 
+Steps 1-9 shipped by 2026-09-23: `surf session audit`, `surf calibrate`,
+`surf lexicon`, `surf climate`, `surf terrain`, `surf imagery`, `surf
+wave-state`, the evidence module, `surf-mcp`, `surf snapshot` and `surf watch`.
+Steps 10 and 11 are open.
+
 1. Repair the session log to the point where the band is trustworthy, and add
    the regime field. Everything else reads this.
 2. Personal backtest: replay the log, refuse to proceed while a 2/5 outranks

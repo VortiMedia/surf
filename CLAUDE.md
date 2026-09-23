@@ -1,8 +1,9 @@
 # Working in this repo
 
 The physics lives in the `surf` package. Read `README.md` for what the tool
-does, `docs/DATA-SOURCES.md` before touching any endpoint, and
-`docs/CALIBRATION.md` before touching scoring.
+does, `CONTEXT.md` for what the domain words mean, `docs/DATA-SOURCES.md`
+before touching any endpoint or imagery source, and `docs/CALIBRATION.md`
+before touching scoring.
 
 ## Product direction
 
@@ -25,7 +26,9 @@ place, and being re-derived three sessions later.
 |---|---|
 | A spot's position, aspect, slope, access | `data/spots.tsv`, one row, with provenance |
 | A session and what it was actually like | `data/sessions.tsv` via `surf session add` |
+| A domain word, or a word used two ways | `CONTEXT.md` |
 | An endpoint lies, 404s, shifts columns, rate-limits | `docs/DATA-SOURCES.md` |
+| An imagery source's pixel size, dates, access or cost | `docs/DATA-SOURCES.md`, the imagery table |
 | The model ranked a session wrong | `docs/CALIBRATION.md` |
 | A survey result — how big a coast gets, which places are worth a row | `docs/RECON.md` |
 | Codebase layout, the research workflow, product boundary or build order | `docs/ARCHITECTURE.md` |

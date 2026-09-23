@@ -9,3 +9,5 @@ data/overlays/
 data/exposure/
 .DS_Store
 data/climate/
+.claude/worktrees/
+.playwright-mcp/
