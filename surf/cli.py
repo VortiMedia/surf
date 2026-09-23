@@ -72,7 +72,7 @@ from .sessions import (
     load_sessions,
 )
 from .sources import Archive, Http, Reading, Window
-from .spots import Derived, Spot, SpotBook, data_dir, save_spots
+from .spots import Derived, Spot, SpotBook, cache_dir, data_dir, save_spots
 from .tides import TideAdapter
 from .tube import BREAKING_BAND_M, Intensity, measure as measure_intensity
 from .terrain import (
@@ -1125,7 +1125,7 @@ def cmd_watch(args: argparse.Namespace, console: Console) -> int:
         if not args.model_run:
             console.warn("watch run requires --model-run so scheduled snapshots keep real provenance")
             return EXIT_USAGE
-        snapshots = SnapshotStore(args.snapshots or (data_dir() / "cache" / "forecast-snapshots.jsonl"))
+        snapshots = SnapshotStore(args.snapshots or (cache_dir() / "forecast-snapshots.jsonl"))
         result = run_watch(
             setup,
             service=console.service(),
