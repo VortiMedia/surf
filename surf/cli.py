@@ -803,11 +803,21 @@ def _render_terrain(zone: str, source: str, status: str, fetched_at: datetime, s
             console.say(f"      {candidate.promotion}")
 
 
+def _floats(raw: str, count: int, usage: str) -> tuple[float, ...]:
+    """A comma-separated option value holding exactly `count` numbers."""
+    values = tuple(float(value.strip()) for value in raw.split(","))
+    if len(values) != count:
+        raise ValueError(usage)
+    return values
+
+
+def _bbox(raw: str) -> tuple[float, ...]:
+    return _floats(raw, 4, "--bbox must be min_lat,min_lon,max_lat,max_lon")
+
+
 def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
     """Scan feature-resolving bathymetry and propose terrain objects."""
-    bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
-    if len(bbox) != 4:
-        raise ValueError("--bbox must be min_lat,min_lon,max_lat,max_lon")
+    bbox = _bbox(args.bbox)
     locations = bbox_locations(args.zone, bbox, step_deg=args.step)
     if not locations:
         raise ValueError("--bbox and --step produce no scan cells")
@@ -843,9 +853,7 @@ def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
 
 def cmd_tube(args: argparse.Namespace, console: Console) -> int:
     """Can the sea floor here hold a barrel? The sea floor alone answers."""
-    band = tuple(float(v.strip()) for v in args.band.split(","))
-    if len(band) != 2:
-        raise ValueError("--band must be shallow,deep in metres")
+    band = _floats(args.band, 2, "--band must be shallow,deep in metres")
     spot, label = _tube_target(args, console)
     if spot is None:
         return EXIT_FAILED
@@ -868,10 +876,7 @@ def _tube_target(args: argparse.Namespace, console: Console) -> tuple[Spot | Non
     """A stored spot, or a bare coordinate wrapped in one. A coordinate carries
     no measured geometry, so nothing derived from it is ever written back."""
     if args.at:
-        parts = tuple(float(v.strip()) for v in args.at.split(","))
-        if len(parts) != 2:
-            raise ValueError("--at must be lat,lon")
-        lat, lon = parts
+        lat, lon = _floats(args.at, 2, "--at must be lat,lon")
         return (
             Spot(
                 id="at", name=f"{lat:.5f}, {lon:.5f}", lat=lat, lon=lon,
@@ -921,9 +926,7 @@ def _render_tube(
 
 def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     """Review static geometry from cloud-free, georeferenced frame metadata."""
-    bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
-    if len(bbox) != 4:
-        raise ValueError("--bbox must be min_lat,min_lon,max_lat,max_lon")
+    bbox = _bbox(args.bbox)
     terrain_path = terrain_cache_path(args.zone, bbox)
     if not terrain_path.exists():
         console.warn(f"no terrain cache for {args.zone!r}; run `surf terrain` first")
@@ -958,9 +961,7 @@ def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
 
 def cmd_wave_state(args: argparse.Namespace, console: Console) -> int:
     """Measure dynamic wave state from clear, coincident imagery only."""
-    bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
-    if len(bbox) != 4:
-        raise ValueError("--bbox must be min_lat,min_lon,max_lat,max_lon")
+    bbox = _bbox(args.bbox)
     static_path = imagery_cache_path(args.zone, bbox)
     if not static_path.exists():
         console.warn(f"no static imagery cache for {args.zone!r}; run `surf imagery` first")
