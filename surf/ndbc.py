@@ -55,24 +55,30 @@ def realtime_url(buoy_id: str, ext: str) -> str:
 
 def _to_deg(raw: str) -> float | None:
     """Directions arrive as degrees in `.txt` and as compass points in `.spec`."""
-    if raw in {MISSING, "999", "999.0", "99", "99.0"}:
+    if raw == MISSING:
         return None
     if raw in _CARDINAL_DEG:
         return _CARDINAL_DEG[raw]
     try:
-        return float(raw) % 360.0
+        value = float(raw)
     except ValueError:
         return None
+    if value in {99.0, 999.0}:
+        return None
+    return value % 360.0
 
 
 def _to_float(raw: str) -> float | None:
     # Historical standard-met files use numeric sentinels as well as `MM`.
-    if raw in {MISSING, "99", "99.0", "999", "999.0", "9999", "9999.0"}:
+    if raw == MISSING:
         return None
     try:
-        return float(raw)
+        value = float(raw)
     except ValueError:
         return None
+    if value in {99.0, 999.0, 9999.0}:
+        return None
+    return value
 
 
 def _rows(text: str) -> tuple[list[str], list[list[str]]]:

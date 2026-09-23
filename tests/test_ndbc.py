@@ -156,6 +156,19 @@ def test_historical_header_parser_and_centred_median_peak():
     assert storm.total_height_m == pytest.approx(5.82)
 
 
+def test_decimal_variants_of_numeric_missing_sentinels_are_missing():
+    text = """\
+#YY MM DD hh mm WDIR WSPD WVHT DPD MWD
+#yr mo dy hr mn degT m/s m sec degT
+2024 08 20 08 40 999.00 99.00 99.00 99.00 999.00
+"""
+    field = parse_txt(text)[0]
+    assert field.total_height_m is None
+    assert field.total_period_s is None
+    assert field.partitions == ()
+    assert field.wind is None
+
+
 def test_centred_median_does_not_bridge_a_missing_sample():
     fields = parse_txt(HISTORICAL_44091, "44091")
     # Removing the 04:56 record leaves a 90-minute gap around 04:26/05:26.
