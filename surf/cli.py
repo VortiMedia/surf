@@ -689,6 +689,11 @@ def cmd_session_audit(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
+def _receipt(result: Any) -> Reading[Any]:
+    """A derived result that carries its own provenance, as a source receipt."""
+    return Reading(result, result.source, result.status, result.fetched_at, note=result.note, dropped=result.dropped)
+
+
 def _render_climate(result: ClimateResult, console: Console) -> None:
     console.say(f"CLIMATE  {result.zone}  {result.start} to {result.end}")
     console.say(f"  source         {result.source}:{result.status}")
@@ -732,14 +737,14 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
     path = cache_path(args.zone, start, end)
     if path.exists() and not args.refresh:
         result = load_cache(path, book)
-        console.record(Reading(result, result.source, result.status, result.fetched_at, note=result.note, dropped=result.dropped))
+        console.record(_receipt(result))
         _render_climate(result, console)
         return EXIT_OK if result.status in ("ok", "degraded") else EXIT_FAILED
 
     source = console.climate_source or OpenMeteoClimate(Http())
     result, samples = measure_zone(args.zone, spots, start, end, source=source, now=console.clock())
     save_cache(path, result, samples)
-    console.record(Reading(result, result.source, result.status, result.fetched_at, note=result.note, dropped=result.dropped))
+    console.record(_receipt(result))
     _render_climate(result, console)
     return EXIT_FAILED if result.status == "failed" else EXIT_OK
 
@@ -888,7 +893,7 @@ def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     _, _, _, scans = load_terrain_cache(terrain_path)
     frames = load_frames(Path(args.frames))
     screen = screen_candidates(scans, frames, args.zone, console.clock())
-    console.record(Reading(screen, screen.source, screen.status, screen.fetched_at, note=screen.note, dropped=screen.dropped))
+    console.record(_receipt(screen))
     path = imagery_cache_path(args.zone, bbox)
     save_screen(path, screen)
     console.say(f"IMAGERY  {args.zone}")
@@ -923,7 +928,7 @@ def cmd_wave_state(args: argparse.Namespace, console: Console) -> int:
     static = load_screen(static_path)
     frames = load_frames(Path(args.frames))
     screen = screen_wave_state(static, frames, args.zone, console.clock())
-    console.record(Reading(screen, screen.source, screen.status, screen.fetched_at, note=screen.note, dropped=screen.dropped))
+    console.record(_receipt(screen))
     path = wave_state_cache_path(args.zone, bbox)
     save_wave_state(path, screen)
     console.say(f"WAVE STATE  {args.zone}")
