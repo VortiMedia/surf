@@ -12,6 +12,7 @@ from surf import cli
 from surf.spots import Derived, Spot
 from surf.waves import Forecast, SwellPartition, TidePoint, WaveField, Wind
 from surf.sources import Reading, Window
+from surf.call import SpotOutlook
 from surf.forecast import Sources
 from surf.spots import SpotBook
 
@@ -414,7 +415,7 @@ def test_outlook_from_regroups_merged_hours_into_one_forecast_per_model():
 
     service = ForecastService(live_sources(), clock=clock)
     window = Window(start=NOW, hours=6)
-    outlook = cli.outlook_from(service.outlook(POINT_JUDITH, window))
+    outlook = SpotOutlook.from_forecast(service.outlook(POINT_JUDITH, window))
 
     assert {f.model for f in outlook.forecasts} == {"gwam", "ncep_gfswave025"}
     assert all(len(f.hours) == 6 for f in outlook.forecasts)
@@ -427,7 +428,7 @@ def test_outlook_from_marks_a_spot_with_no_buoy_model_only():
     from surf.forecast import ForecastService
 
     service = ForecastService(live_sources(), clock=clock)
-    outlook = cli.outlook_from(service.outlook(LLANDUDNO, Window(start=NOW, hours=6)))
+    outlook = SpotOutlook.from_forecast(service.outlook(LLANDUDNO, Window(start=NOW, hours=6)))
     assert outlook.model_only is True
 
 

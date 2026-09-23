@@ -80,7 +80,7 @@ from .terrain import (
     scan_zone,
     terrain_cache_path,
 )
-from .waves import Forecast, TidePoint, WaveField, m_to_ft, mps_to_kt
+from .waves import WaveField, m_to_ft, mps_to_kt
 from .watch import SavedSetup, SetupConditions, SetupStore, WatchError, run_watch
 
 PROGRAM = "surf"
@@ -172,36 +172,6 @@ def _benchmark(http: Http, enabled: bool | None) -> Any:
     except ImportError:
         return None
     return module.benchmark(http, enabled=enabled)
-
-
-def outlook_from(forecast: SpotForecast) -> SpotOutlook:
-    """Transpose a fetched `SpotForecast` into the `SpotOutlook` the call scores.
-
-    `SpotForecast` merges models per hour, which is what CONFIDENCE needs;
-    scoring wants one `Forecast` per model instead.
-    """
-    by_model: dict[str, list[WaveField]] = {}
-    for hour in forecast.hours:
-        for wave in hour.fields:
-            by_model.setdefault(wave.model, []).append(wave)
-
-    tide: dict[datetime, TidePoint] = {}
-    for hour in forecast.hours:
-        if hour.tide is not None:
-            tide[hour.tide.time] = hour.tide
-
-    observed = next((h.observed for h in forecast.hours if h.observed is not None), None)
-    return SpotOutlook(
-        spot=forecast.spot,
-        forecasts=tuple(
-            Forecast(forecast.spot.id, model, tuple(waves))
-            for model, waves in sorted(by_model.items())
-        ),
-        observed=observed,
-        tide=tuple(tide[at] for at in sorted(tide)),
-        slope=forecast.slope,
-        notes=forecast.notes,
-    )
 
 
 @dataclass
@@ -329,7 +299,7 @@ def _fetch(
         forecast = service.outlook(spot, window)
         fetched.append(forecast)
         readings.extend(forecast.readings)
-        outlooks.append(outlook_from(forecast))
+        outlooks.append(SpotOutlook.from_forecast(forecast))
     return outlooks, readings, fetched
 
 
@@ -531,7 +501,7 @@ def cmd_spot(args: argparse.Namespace, console: Console) -> int:
         console.warn("no hour could be assembled for this spot")
         return EXIT_FAILED
 
-    outlook = outlook_from(forecast)
+    outlook = SpotOutlook.from_forecast(forecast)
     hours, dropped = score_outlook(
         outlook, start=now, end=now + timedelta(days=min(args.days, SHARP_DAYS))
     )

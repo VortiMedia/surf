@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .daylight import Daylight, daylight
@@ -15,6 +16,9 @@ from .score import NOMINAL_SLOPE, PLUNGING_BAND, Components, reference_field, sc
 from .sources import Reading
 from .spots import Derived, Spot
 from .waves import Forecast, TidePoint, WaveField
+
+if TYPE_CHECKING:
+    from .forecast import SpotForecast
 
 
 @dataclass(frozen=True)
@@ -99,6 +103,36 @@ class SpotOutlook:
     @property
     def model_only(self) -> bool:
         return self.observed is None
+
+    @classmethod
+    def from_forecast(cls, forecast: SpotForecast) -> SpotOutlook:
+        """Transpose a fetched `SpotForecast` into the outlook the call scores.
+
+        `SpotForecast` merges models per hour, which is what CONFIDENCE needs;
+        scoring wants one `Forecast` per model instead.
+        """
+        by_model: dict[str, list[WaveField]] = {}
+        for hour in forecast.hours:
+            for wave in hour.fields:
+                by_model.setdefault(wave.model, []).append(wave)
+
+        tide: dict[datetime, TidePoint] = {}
+        for hour in forecast.hours:
+            if hour.tide is not None:
+                tide[hour.tide.time] = hour.tide
+
+        observed = next((h.observed for h in forecast.hours if h.observed is not None), None)
+        return cls(
+            spot=forecast.spot,
+            forecasts=tuple(
+                Forecast(forecast.spot.id, model, tuple(waves))
+                for model, waves in sorted(by_model.items())
+            ),
+            observed=observed,
+            tide=tuple(tide[at] for at in sorted(tide)),
+            slope=forecast.slope,
+            notes=forecast.notes,
+        )
 
     def response(self) -> Response:
         # Without a matrix, SIZE would be scored unrefracted, which pretends
