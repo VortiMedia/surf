@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -14,7 +13,7 @@ from .response import Response
 from .score import Components, score_hour
 from .sessions import Session, load_sessions, resolution_report, usable
 from .sources import Archive, Reading
-from .spots import Spot, SpotBook, data_dir
+from .spots import Spot, SpotBook, cache_dir
 from .waves import SwellPartition, WaveField, Wind, angle_between, normalise_bearing, signed_angle
 
 # Local hour assumed when a row records no time. Flagged on every row that uses
@@ -104,7 +103,7 @@ def _sets_toward(spot: Spot, compass_word: str) -> tuple[float, float]:
 
 
 def default_cache_dir() -> Path:
-    return Path(os.environ.get("SURF_CACHE_DIR") or data_dir() / "cache") / "calibration"
+    return cache_dir() / "calibration"
 
 
 def _field_to_json(field: WaveField) -> dict:

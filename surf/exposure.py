@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -27,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
-from .spots import data_dir
+from .spots import cache_dir, data_dir
 
 # Metres per degree of latitude. Longitude is this times cos(latitude).
 METRES_PER_DEGREE = 111_320.0
@@ -190,7 +189,7 @@ def _polygons(document: Any) -> list[Any]:
 
 
 def default_land_cache() -> Path:
-    root = Path(os.environ.get("SURF_CACHE_DIR") or data_dir() / "cache")
+    root = cache_dir()
     return root / "coastline" / "ne_50m_land.geojson"
 
 

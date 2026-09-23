@@ -120,6 +120,11 @@ def data_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "data"
 
 
+def cache_dir() -> Path:
+    """Directory for regenerable caches; `SURF_CACHE_DIR` overrides it."""
+    return Path(os.environ.get("SURF_CACHE_DIR") or data_dir() / "cache")
+
+
 def default_spots_path() -> Path:
     return data_dir() / "spots.tsv"
 

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, Sequence
 
 from .sources import Reading
-from .spots import Derived, Spot, data_dir
+from .spots import Derived, Spot, cache_dir
 
 if TYPE_CHECKING:
     from .bathymetry import Sample
@@ -383,7 +382,7 @@ def beach_slope(
 
 
 def default_cache_dir() -> Path:
-    return Path(os.environ.get("SURF_CACHE_DIR") or data_dir() / "cache") / "geometry"
+    return cache_dir() / "geometry"
 
 
 class GeometryCache:
