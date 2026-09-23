@@ -18,10 +18,9 @@ from .climate import (
     ClimateResult,
     ClimateSource,
     OpenMeteoClimate,
-    build_result,
     cache_path,
-    climate_cell_key,
     load_cache,
+    measure_zone,
     save_cache,
 )
 from .call import (
@@ -738,32 +737,7 @@ def cmd_climate(args: argparse.Namespace, console: Console) -> int:
         return EXIT_OK if result.status in ("ok", "degraded") else EXIT_FAILED
 
     source = console.climate_source or OpenMeteoClimate(Http())
-    samples: dict[str, tuple] = {}
-    statuses: list[str] = []
-    fetched_at = console.clock()
-    dropped: list[str] = []
-    by_cell: dict[tuple[float, float, float, float], Reading[Any]] = {}
-    for spot in spots:
-        key = climate_cell_key(spot)
-        reading = by_cell.get(key)
-        if reading is None:
-            reading = source.cell(spot, start, end)
-            by_cell[key] = reading
-        statuses.append(reading.status)
-        fetched_at = max(fetched_at, reading.fetched_at)
-        if reading.value is not None:
-            samples[spot.id] = reading.value
-        if reading.dropped:
-            dropped.extend(f"{spot.id}: {item}" for item in reading.dropped)
-    status = "ok" if all(s == "ok" for s in statuses) else (
-        "failed" if all(s in ("failed", "skipped") for s in statuses) else "degraded"
-    )
-    result = build_result(
-        args.zone, spots, samples, start, end,
-        source=source.name, status=status, fetched_at=fetched_at,
-        note=f"{len(spots)} zone cells, {len(by_cell)} archive cells; wave and wind joined on exact UTC timestamps",
-        dropped=tuple(dropped),
-    )
+    result, samples = measure_zone(args.zone, spots, start, end, source=source, now=console.clock())
     save_cache(path, result, samples)
     console.record(Reading(result, result.source, result.status, result.fetched_at, note=result.note, dropped=result.dropped))
     _render_climate(result, console)

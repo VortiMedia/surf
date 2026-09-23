@@ -355,3 +355,47 @@ def build_result(
         note=note,
         dropped=dropped,
     )
+
+
+def measure_zone(
+    zone: str,
+    spots: tuple[Spot, ...],
+    start: date,
+    end: date,
+    *,
+    source: ClimateSource,
+    now: datetime,
+) -> tuple[ClimateResult, dict[str, tuple[ClimateSample, ...]]]:
+    """Fetch each archive cell once, then measure overlap for every zone spot.
+
+    Spots sharing a `climate_cell_key` share one archive reading. The status is
+    `ok` only when every spot's reading was, and `failed` only when none answered.
+    Returns the samples too, so the caller can cache what was measured.
+    """
+    samples: dict[str, tuple[ClimateSample, ...]] = {}
+    statuses: list[str] = []
+    fetched_at = now
+    dropped: list[str] = []
+    by_cell: dict[tuple[float, float, float, float], Reading[Any]] = {}
+    for spot in spots:
+        key = climate_cell_key(spot)
+        reading = by_cell.get(key)
+        if reading is None:
+            reading = source.cell(spot, start, end)
+            by_cell[key] = reading
+        statuses.append(reading.status)
+        fetched_at = max(fetched_at, reading.fetched_at)
+        if reading.value is not None:
+            samples[spot.id] = reading.value
+        if reading.dropped:
+            dropped.extend(f"{spot.id}: {item}" for item in reading.dropped)
+    status = "ok" if all(s == "ok" for s in statuses) else (
+        "failed" if all(s in ("failed", "skipped") for s in statuses) else "degraded"
+    )
+    result = build_result(
+        zone, spots, samples, start, end,
+        source=source.name, status=status, fetched_at=fetched_at,
+        note=f"{len(spots)} zone cells, {len(by_cell)} archive cells; wave and wind joined on exact UTC timestamps",
+        dropped=tuple(dropped),
+    )
+    return result, samples
