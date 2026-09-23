@@ -82,6 +82,10 @@ a degraded answer that still exits zero and says so.
 `fit_beach_slope` averages a reef into gentle sand and the resulting Iribarren
 number says a reef point closes out at every size, which is false. Size reef and
 point breaks by depth-limited breaking and say the gradient is unresolved.
+The boundary is now measured, not asserted: on the held-out panel in
+`docs/CALIBRATION.md` the breaking-band gradient separates world-class tubes from
+beginner beaches at AUC 1.00 on a 3.4 m DEM and AUC 0.50 — chance — on a 61 m
+one. Above 10 m, report the gradient and withhold the barrel class.
 
 **Parse NDBC historical by header, never by fixed index.** Files before 2005
 have no `mm` column and every field shifts, so you read wind gusts as wave
@@ -96,6 +100,16 @@ is a stated convention, never a bare figure.
 
 **Do not re-diagnose Surfline with curl.** A direct curl gets 403 from the WAF;
 httpx with a normal User-Agent succeeds.
+
+**Sentinel-2 L2A from Element84 is already harmonised.** Do not apply the
+baseline-04.00 `BOA_ADD_OFFSET` of -1000. It drives water reflectance negative,
+silently inverts every log-ratio, and looks like a physics bug for an hour.
+`docs/DATA-SOURCES.md` has the DN evidence either side of the boundary.
+
+**A per-scene constraint is one sample, not one per pixel.** Every pixel of a
+waterline or breaker line shares a single depth. Fitting at pixel level claims
+thousands of samples for a result that rests on ten frames, and the R² it
+prints is fiction. `docs/RECON.md` lists the rest of the SDB method traps.
 
 ## Changing things
 

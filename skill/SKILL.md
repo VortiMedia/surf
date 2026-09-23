@@ -37,6 +37,7 @@ a rating back.
 | `surf spot <name>` | One spot in depth: components, geometry, provenance, what is missing. |
 | `surf climate --zone Z --start YYYY-MM-DD --end YYYY-MM-DD` | Measure historical swell/wind overlap per zone cell; uses the derived cache in `data/climate/`. Add `--refresh` to rebuild it. |
 | `surf terrain --zone Z --bbox min_lat,min_lon,max_lat,max_lon` | Scan an explicit zone grid of feature-resolving bathymetry for stable terrain-object candidates; uses `data/climate/` and never promotes a candidate to a surf spot automatically. Add `--refresh` to rebuild it. |
+| `surf tube --spot S \| --at lat,lon` | Breaker intensity from the sea floor at one break: the median seabed gradient in the breaking depth band, converted to a Mead and Black (2001) vortex ratio and intensity class. Refuses outright on a DEM coarser than 100 m, and above 10 m reports the gradient but withholds the class — the statistic scored AUC 0.50 at 61 m on the calibration panel. It screens the bottom only — never swell, wind, line, channel or access. |
 | `surf lexicon [phrase]` | Show the physical filters behind session language, their support count, and whether each is measured, conventional, or contradicted. `surf call --want phrase` applies the same filters. |
 | `surf calibrate` | Score the session log, check no 1/5 dominates a 5/5, print rank correlation per component, and show each scored row's regime. |
 | `surf imagery --zone Z --bbox min_lat,min_lon,max_lat,max_lon --frames manifest.json` | Screen terrain candidates with cloud-free, georeferenced imagery metadata. Reports static geometry measurements in metres as kept, rejected or unresolvable; it never reports wave state. Results use `data/imagery/` (gitignored). |
@@ -292,6 +293,19 @@ archive result is cached under `data/climate/` and carries source, status and
 `fetched_at`; this is derived, rebuildable data, not another source-of-truth
 file. Coarse regional wind cannot resolve terrain shelter, so sheltered spots
 are marked unverified rather than scored bad.
+
+`surf tube` answers one question — can this sea floor hold a barrel — and
+answers it from bathymetry alone. Mead and Black (2001) reject the Iribarren
+number for surfing waves and fit the vortex ratio of a plunging wave to the
+orthogonal seabed gradient instead (`Y = 0.065X + 0.821`, R² = 0.71, X read as
+the 1:X denominator). The command reports the gradient, the vortex ratio and the
+published intensity class, each with the DEM cell it came from. A cell coarser
+than 100 m produces no answer at all. Between 10 m and 100 m it reports the
+gradient and withholds the class: on the calibration panel the same statistic
+separated known tubes from known soft breaks perfectly on a ~3 m DEM and at
+exactly chance on a 61 m one, calling Muizenberg steeper than Thurso. It never claims a rideable wave: peel line,
+channel, exit and access are separate questions, and the screen misses the whole
+class of barrels made by a low peel angle over flat sand.
 
 `surf imagery` is a static-geometry screen for candidates already proposed by
 `surf terrain`. Its frame manifest must identify the source, capture date,

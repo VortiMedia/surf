@@ -74,6 +74,7 @@ from .sessions import (
 from .sources import Archive, Http, Reading, Window
 from .spots import Derived, Spot, SpotBook, data_dir, save_spots
 from .tides import TideAdapter
+from .tube import BREAKING_BAND_M, Intensity, measure as measure_intensity
 from .terrain import (
     TerrainScan,
     TerrainSource,
@@ -840,6 +841,84 @@ def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
     return EXIT_FAILED if status == "failed" else EXIT_OK
 
 
+def cmd_tube(args: argparse.Namespace, console: Console) -> int:
+    """Can the sea floor here hold a barrel? The sea floor alone answers."""
+    band = tuple(float(v.strip()) for v in args.band.split(","))
+    if len(band) != 2:
+        raise ValueError("--band must be shallow,deep in metres")
+    spot, label = _tube_target(args, console)
+    if spot is None:
+        return EXIT_FAILED
+    source = console.terrain_source or NceiBathymetry(Http())
+    reading = source.grid(
+        spot, spacing_m=args.spacing, rows=args.size, cols=args.size,
+    )
+    console.record(reading)
+    if reading.value is None:
+        console.say(f"TUBE  {label}")
+        console.say(f"  source         {reading.source}:{reading.status}")
+        console.say(f"  intensity      unresolved — {reading.note}")
+        return EXIT_FAILED
+    result = measure_intensity(reading.value, args.spacing, depth_band_m=band)
+    _render_tube(label, spot, result, reading, console)
+    return EXIT_OK
+
+
+def _tube_target(args: argparse.Namespace, console: Console) -> tuple[Spot | None, str]:
+    """A stored spot, or a bare coordinate wrapped in one. A coordinate carries
+    no measured geometry, so nothing derived from it is ever written back."""
+    if args.at:
+        parts = tuple(float(v.strip()) for v in args.at.split(","))
+        if len(parts) != 2:
+            raise ValueError("--at must be lat,lon")
+        lat, lon = parts
+        return (
+            Spot(
+                id="at", name=f"{lat:.5f}, {lon:.5f}", lat=lat, lon=lon,
+                shore_normal=Derived(0.0, "default", "not measured; unused by tube"),
+                beach_slope=Derived(0.0, "default", "not measured; unused by tube"),
+                offshore_lat=lat, offshore_lon=lon, region="",
+            ),
+            f"{lat:.5f}, {lon:.5f}",
+        )
+    if not args.spot:
+        console.warn("give --spot or --at lat,lon")
+        return None, ""
+    book = console.spots()
+    spot = book.resolve(args.spot)
+    if spot is None:
+        console.warn(f"no spot matches {args.spot!r}")
+        return None, ""
+    return spot, spot.name
+
+
+def _render_tube(
+    label: str, spot: Spot, result: Intensity, reading: Reading[Any], console: Console,
+) -> None:
+    console.say(f"TUBE  {label}")
+    console.say(f"  coordinates    {spot.lat:.5f}, {spot.lon:.5f}")
+    console.say(f"  source         {reading.source}:{result.status}")
+    console.say(f"  fetched_at     {reading.fetched_at.isoformat()}")
+    console.say(f"  resolution     {result.resolution_m or 'unreported'} m")
+    console.say(
+        f"  depth band     {result.depth_band_m[0]:g}-{result.depth_band_m[1]:g} m, "
+        f"{result.band_cells} cells"
+    )
+    console.say(f"  gradient       {result.ratio}")
+    console.say(
+        f"  vortex ratio   "
+        f"{f'{result.vortex_ratio:.2f}' if result.vortex_ratio is not None else 'unresolved'}"
+    )
+    console.say(f"  intensity      {result.intensity}")
+    console.say(f"  basis          {result.basis}")
+    for item in reading.dropped:
+        console.say(f"  dropped        {item}")
+    console.say(
+        "  caveat         a gradient is not a rideable wave: no line, channel, "
+        "access, swell or wind is screened here"
+    )
+
+
 def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     """Review static geometry from cloud-free, georeferenced frame metadata."""
     bbox = tuple(float(value.strip()) for value in args.bbox.split(","))
@@ -1305,6 +1384,23 @@ def build_parser() -> argparse.ArgumentParser:
     terrain.add_argument("--step", type=float, default=0.05, help="scan-cell spacing in degrees")
     terrain.add_argument("--refresh", action="store_true", help="rebuild the derived terrain cache")
     terrain.set_defaults(run=cmd_terrain)
+
+    tube = sub.add_parser(
+        "tube", help="breaker intensity from the sea floor at one break"
+    )
+    tube.add_argument("--spot", default="", help="spot id or name from data/spots.tsv")
+    tube.add_argument("--at", default="", help="lat,lon to screen instead of a stored spot")
+    tube.add_argument(
+        "--spacing", type=float, default=40.0, help="grid spacing in metres"
+    )
+    tube.add_argument(
+        "--size", type=int, default=10, help="grid side in cells (max 10 at NCEI)"
+    )
+    tube.add_argument(
+        "--band", default=f"{BREAKING_BAND_M[0]:g},{BREAKING_BAND_M[1]:g}",
+        help="breaking depth band in metres, shallow,deep",
+    )
+    tube.set_defaults(run=cmd_tube)
 
     imagery = sub.add_parser(
         "imagery", help="screen terrain candidates with static-geometry imagery metadata"
