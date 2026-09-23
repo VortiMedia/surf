@@ -54,9 +54,10 @@ from .open_meteo import MarineModelSet, OpenMeteoArchive
 from .reach import reach_from_log
 from .score import Components
 from .snapshots import (
-    BuoyObservation,
     SnapshotError,
     SnapshotStore,
+    load_observations,
+    parse_snapshot_time,
     snapshot_from_hour,
     verify_snapshots,
 )
@@ -80,7 +81,7 @@ from .terrain import (
     scan_grid,
     terrain_cache_path,
 )
-from .waves import Forecast, SwellPartition, TidePoint, WaveField, m_to_ft, mps_to_kt
+from .waves import Forecast, TidePoint, WaveField, m_to_ft, mps_to_kt
 from .watch import SavedSetup, SetupConditions, SetupStore, WatchError, run_watch
 
 PROGRAM = "surf"
@@ -1100,54 +1101,11 @@ def cmd_session(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
-def _snapshot_time(raw: str) -> datetime:
-    try:
-        value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise SnapshotError(f"invalid ISO timestamp {raw!r}") from exc
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
-
-
-def _load_snapshot_observations(path: str | None) -> tuple[BuoyObservation, ...]:
-    """Read explicit, later buoy observations without filling omitted fields."""
-    if not path:
-        return ()
-    observations: list[BuoyObservation] = []
-    for line, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
-        if not raw.strip():
-            continue
-        try:
-            item = json.loads(raw)
-            time = _snapshot_time(item["time"])
-            height_m = item.get("height_m")
-            period_s = item.get("period_s")
-            direction_deg = item.get("direction_deg")
-            partitions = ()
-            if height_m is not None and period_s is not None and direction_deg is not None:
-                partitions = (SwellPartition(float(height_m), float(period_s), float(direction_deg)),)
-            field = WaveField(
-                time=time,
-                partitions=partitions,
-                total_height_m=None if height_m is None else float(height_m),
-                total_period_s=None if period_s is None else float(period_s),
-                model=str(item.get("source", "buoy")),
-            )
-            observations.append(BuoyObservation(
-                spot=str(item["spot"]), field=field,
-                height_quantity=item.get("height_quantity", "offshore_hs"),
-            ))
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise SnapshotError(f"{path}: malformed observation at line {line}: {exc}") from exc
-    return tuple(observations)
-
-
 def cmd_snapshot(args: argparse.Namespace, console: Console) -> int:
     """Issue an append-only forecast snapshot or verify stored snapshots later."""
     store = SnapshotStore(args.path)
     if args.action == "verify":
-        observations = _load_snapshot_observations(args.observations)
+        observations = load_observations(args.observations)
         sessions = load_sessions(args.sessions, book=console.spots()) if args.sessions else ()
         report = verify_snapshots(store.read(), observations, sessions)
         console.say(f"SNAPSHOT VERIFY  {len(report.rows)} rows  {len(report.scored)} scored")
@@ -1166,8 +1124,8 @@ def cmd_snapshot(args: argparse.Namespace, console: Console) -> int:
     if not args.spot or not args.valid_at or not args.model_run:
         console.warn("snapshot issue requires --spot, --valid-at and --model-run")
         return EXIT_USAGE
-    valid_at = _snapshot_time(args.valid_at)
-    issued_at = _snapshot_time(args.issued_at) if args.issued_at else console.clock()
+    valid_at = parse_snapshot_time(args.valid_at)
+    issued_at = parse_snapshot_time(args.issued_at) if args.issued_at else console.clock()
     spot = console.spots().resolve(args.spot)
     if spot is None:
         console.warn(f"no spot matches {args.spot!r}")

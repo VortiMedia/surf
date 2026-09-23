@@ -23,7 +23,7 @@ from .score import Components, reference_field, score_hour
 from .sessions import Session
 from .sources import Reading, Status
 from .spots import Derived, Spot
-from .waves import WaveField, angle_between
+from .waves import SwellPartition, WaveField, angle_between
 
 HeightQuantity = Literal["offshore_hs", "nearshore_hs", "face_height"]
 HEIGHT_QUANTITIES = frozenset(("offshore_hs", "nearshore_hs", "face_height"))
@@ -502,3 +502,45 @@ def _parse_time(raw: Any) -> datetime:
         return _utc(datetime.fromisoformat(raw.replace("Z", "+00:00")))
     except ValueError as exc:
         raise SnapshotError(f"invalid timestamp {raw!r}") from exc
+
+
+def parse_snapshot_time(raw: str) -> datetime:
+    """A caller-supplied ISO time (`--valid-at`, an observation's `time`), in UTC."""
+    try:
+        value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise SnapshotError(f"invalid ISO timestamp {raw!r}") from exc
+    return _utc(value)
+
+
+def load_observations(path: str | None) -> tuple[BuoyObservation, ...]:
+    """Read explicit, later buoy observations without filling omitted fields."""
+    if not path:
+        return ()
+    observations: list[BuoyObservation] = []
+    for line, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw.strip():
+            continue
+        try:
+            item = json.loads(raw)
+            time = parse_snapshot_time(item["time"])
+            height_m = item.get("height_m")
+            period_s = item.get("period_s")
+            direction_deg = item.get("direction_deg")
+            partitions = ()
+            if height_m is not None and period_s is not None and direction_deg is not None:
+                partitions = (SwellPartition(float(height_m), float(period_s), float(direction_deg)),)
+            field = WaveField(
+                time=time,
+                partitions=partitions,
+                total_height_m=None if height_m is None else float(height_m),
+                total_period_s=None if period_s is None else float(period_s),
+                model=str(item.get("source", "buoy")),
+            )
+            observations.append(BuoyObservation(
+                spot=str(item["spot"]), field=field,
+                height_quantity=item.get("height_quantity", "offshore_hs"),
+            ))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise SnapshotError(f"{path}: malformed observation at line {line}: {exc}") from exc
+    return tuple(observations)
