@@ -38,6 +38,8 @@ from .forecast import ForecastService, Sources, SpotForecast
 from .evidence import default_evidence
 from .geometry import GeometryCache, beach_slope
 from .imagery import (
+    GeometryReview,
+    WaveStateReview,
     imagery_cache_path,
     load_frames,
     load_screen,
@@ -850,6 +852,18 @@ def _render_tube(
     )
 
 
+def _say_review_head(review: GeometryReview | WaveStateReview, console: Console) -> None:
+    """The lines every imagery review opens with: which candidate, where, and
+    which frames the decision rests on."""
+    console.say()
+    console.say(f"  {review.candidate}  {review.decision}")
+    console.say(f"    coordinates   {review.lat:.5f}, {review.lon:.5f}")
+    console.say(f"    source        {review.source}")
+    console.say(f"    resolution    {review.resolution_m or 'unknown'} m")
+    console.say(f"    capture dates {', '.join(review.capture_dates) or 'none'}")
+    console.say(f"    frames        {', '.join(review.frames) or 'none'}")
+
+
 def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     """Review static geometry from cloud-free, georeferenced frame metadata."""
     bbox = _bbox(args.bbox)
@@ -868,13 +882,7 @@ def cmd_imagery(args: argparse.Namespace, console: Console) -> int:
     console.say(f"  fetched_at     {screen.fetched_at.isoformat()}")
     console.say(f"  note           {screen.note}")
     for review in screen.reviews:
-        console.say()
-        console.say(f"  {review.candidate}  {review.decision}")
-        console.say(f"    coordinates   {review.lat:.5f}, {review.lon:.5f}")
-        console.say(f"    source        {review.source}")
-        console.say(f"    resolution    {review.resolution_m or 'unknown'} m")
-        console.say(f"    capture dates {', '.join(review.capture_dates) or 'none'}")
-        console.say(f"    frames        {', '.join(review.frames) or 'none'}")
+        _say_review_head(review, console)
         if review.measurements_m:
             console.say("    geometry      " + ", ".join(f"{name}={value:g} m" for name, value in review.measurements_m))
         console.say(f"    status        {review.status}")
@@ -905,13 +913,7 @@ def cmd_wave_state(args: argparse.Namespace, console: Console) -> int:
     for dropped in screen.dropped:
         console.say(f"  dropped        {dropped}")
     for review in screen.reviews:
-        console.say()
-        console.say(f"  {review.candidate}  {review.decision}")
-        console.say(f"    coordinates   {review.lat:.5f}, {review.lon:.5f}")
-        console.say(f"    source        {review.source}")
-        console.say(f"    resolution    {review.resolution_m or 'unknown'} m")
-        console.say(f"    capture dates {', '.join(review.capture_dates) or 'none'}")
-        console.say(f"    frames        {', '.join(review.frames) or 'none'}")
+        _say_review_head(review, console)
         if review.wavelength_m is not None:
             console.say(f"    wavelength    {review.wavelength_m:g} m")
         if review.period_s is not None:
