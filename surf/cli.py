@@ -29,6 +29,7 @@ from .call import (
     Call,
     Candidate,
     SpotOutlook,
+    best_hour,
     falsifiers_for,
     make_call,
     score_outlook,
@@ -514,7 +515,7 @@ def cmd_spot(args: argparse.Namespace, console: Console) -> int:
         console.warn("nothing scoreable inside the sharp horizon")
         return EXIT_FAILED
 
-    best = max(hours, key=lambda h: (h.key, -h.at.timestamp()))
+    best = best_hour(hours)
     console.say()
     console.say(f"best hour  {best.at:%a %d %b %H:%M} UTC")
     console.say(f"  {_components(best.components)}")

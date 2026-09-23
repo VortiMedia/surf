@@ -222,6 +222,11 @@ def score_outlook(
     return tuple(scored), tuple(dropped)
 
 
+def best_hour(hours: Sequence[ScoredHour]) -> ScoredHour:
+    """The spot's peak hour; on a tie, the earliest."""
+    return max(hours, key=lambda h: (h.key, -h.at.timestamp()))
+
+
 def window_hours(hours: Sequence[ScoredHour], peak: ScoredHour) -> tuple[ScoredHour, ...]:
     """The contiguous run of hours around the peak that holds up.
 
@@ -519,7 +524,7 @@ def make_call(
 
     ranked = sorted(
         (
-            max(hours, key=lambda h: (h.key, -h.at.timestamp()))
+            best_hour(hours)
             for _, hours in by_spot.values()
         ),
         key=lambda h: (-h.key, h.at, h.spot.id),
