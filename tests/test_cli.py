@@ -146,11 +146,25 @@ def live_sources() -> Sources:
     )
 
 
+class NoArchive:
+    """The offline suite never reaches Open-Meteo. Once a test's session date
+    passed, the live archive started answering and the assertion flipped."""
+
+    name = "no-archive"
+
+    def preflight(self) -> Reading[bool]:
+        return Reading(False, self.name, "failed", NOW, note="offline test")
+
+    def conditions(self, spot, on, hour) -> Reading[WaveField]:
+        return Reading(None, self.name, "failed", NOW, note="offline test")
+
+
 def run(*argv: str, sources: Sources | None = None, book: SpotBook | None = BOOK):
     """Run one command and hand back (exit code, stdout, stderr)."""
     out, err = io.StringIO(), io.StringIO()
     console = cli.Console(
-        out=out, err=err, sources=sources, book=book, clock=clock
+        out=out, err=err, sources=sources, book=book, clock=clock,
+        archive=NoArchive(),
     )
     code = cli.main(list(argv), console=console)
     return code, out.getvalue(), err.getvalue()
