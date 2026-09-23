@@ -77,30 +77,46 @@ its threshold.
 
 ## Where the code lives
 
-`surf/` is the auditable calculation layer. Every entry point is a CLI
-subcommand in `cli.py`; nothing else is a public surface.
+`surf/` is the auditable calculation layer. `cli.py` is the entry point for
+every calculation. `surf-mcp` and `surf-mcp-http` call the same commands for
+Claude and mobile clients. `surf-exposure` and `surf-wrap` are standalone
+geometry tools that write KMZ and overlays.
 
 | Module | Holds |
 |---|---|
-| `cli.py` | Every subcommand and its argument parsing. The only entry point. |
-| `call.py` | The decision: rank a region and window, commit to one answer. |
-| `score.py` | The four axes. Iribarren, breaker classification, band scores. |
+| `cli.py` | Every subcommand: argument parsing and text rendering. |
+| `mcp.py`, `mcp_http.py` | Read-only MCP tools over the CLI commands, by stdio and HTTP. |
+| `call.py` | The decision: rank a region and window, commit to one call. |
+| `score.py` | The four axes. Iribarren, breaker classification, component scores. |
+| `reach.py` | REACH, from the largest session rated 4 or 5. |
+| `bands.py` | Per-setup-type minimum bands from the session log. |
+| `lexicon.py` | Session-log words mapped to physical filters. |
+| `response.py` | How much of an offshore swell reaches a spot, by direction and period. |
 | `waves.py` | Shared wave arithmetic — dispersion, wavelength, bearings, units. |
-| `geometry.py` | Beach slope fitted from the sea floor, cached to `spots.tsv`. |
-| `bathymetry.py` | Sea floor sampling and its stated resolution. |
+| `forecast.py` | Model forecast assembly and status per spot. |
+| `spots.py` | The spot book: `data/spots.tsv`, name matching, provenance, cache location. |
+| `sessions.py` | The session log: read, audit and append `data/sessions.tsv`. |
+| `calibrate.py` | The personal backtest: score the log against the model. |
+| `evidence.py` | Reference events and archetypes, below sessions on the evidence ladder. |
+| `climate.py` | Seasonal swell and wind overlap per zone, over the derived climate cache. |
+| `geometry.py` | Beach slope fitted from the sea floor, written to `spots.tsv`. |
+| `bathymetry.py` | Sea-floor sampling and its stated resolution. |
+| `terrain.py` | Sea-floor object scan that proposes terrain candidates. |
+| `tube.py` | Breaker intensity from the sea-floor gradient. |
+| `imagery.py` | Static geometry and dynamic wave state from an imagery frame manifest. |
 | `exposure.py` | Coastline segments, seaward normals, land shadow, KMZ. |
-| `spots.py` | Reads `data/spots.tsv`, name normalisation, provenance. |
-| `sessions.py` | Reads and appends `data/sessions.tsv`. |
-| `calibrate.py` | Scores the log against the model. The personal backtest lives here. |
-| `forecast.py` | Model forecast assembly and status. |
+| `wrapmap.py` | Shelter field, shelter contours and wrap score along a coast. |
+| `snapshots.py` | Frozen forecasts and their later verification. |
+| `watch.py` | Saved setups and one scheduled evaluation that raises alerts. |
 | `open_meteo.py`, `ndbc.py`, `tides.py`, `surfline.py` | One source each. |
-| `sources.py` | Preflight, circuit breaking, per-source status. |
-| `response.py` | The labelled result object every command returns. |
+| `sources.py` | Readings, windows, preflight, circuit breaking, per-source status. |
 | `daylight.py` | Sunrise, sunset, usable light. |
 
 Two rules hold this together. A source module knows only its own endpoint and
 never scores anything. A scoring module never fetches. Anything that reaches the
 network returns a labelled status, never a bare number.
+`climate.py` breaks both rules: it holds its own Open-Meteo client next to
+the overlap analysis. Split the client out before `climate.py` grows further.
 
 New work lands as a subcommand with a test, or it stays in the scratchpad. A
 one-off that answered a question is not a deliverable; the answer is.

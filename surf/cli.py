@@ -72,7 +72,7 @@ from .sessions import (
     load_sessions,
 )
 from .sources import Archive, Http, Reading, Window
-from .spots import Derived, Spot, SpotBook, cache_dir, data_dir, save_spots
+from .spots import Derived, Spot, SpotBook, cache_dir, save_spots
 from .tides import TideAdapter
 from .tube import BREAKING_BAND_M, Intensity, measure as measure_intensity
 from .terrain import (
