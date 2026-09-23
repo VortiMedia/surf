@@ -35,7 +35,7 @@ from .call import (
     score_outlook,
     signals_for,
 )
-from .forecast import ForecastService, Sources, SpotForecast
+from .forecast import ForecastService, Sources
 from .evidence import default_evidence
 from .geometry import GeometryCache, beach_slope
 from .imagery import (
@@ -294,17 +294,15 @@ def cmd_sources(args: argparse.Namespace, console: Console) -> int:
 
 def _fetch(
     console: Console, spots: Sequence[Spot], window: Window
-) -> tuple[list[SpotOutlook], list[Reading[Any]], list[SpotForecast]]:
+) -> tuple[list[SpotOutlook], list[Reading[Any]]]:
     service = console.service()
     outlooks: list[SpotOutlook] = []
     readings: list[Reading[Any]] = []
-    fetched: list[SpotForecast] = []
     for spot in spots:
         forecast = service.outlook(spot, window)
-        fetched.append(forecast)
         readings.extend(forecast.readings)
         outlooks.append(SpotOutlook.from_forecast(forecast))
-    return outlooks, readings, fetched
+    return outlooks, readings
 
 
 def _unique(lines: Sequence[str]) -> list[str]:
@@ -405,7 +403,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
     )
     console.say()
 
-    outlooks, readings, _ = _fetch(console, spots, window)
+    outlooks, readings = _fetch(console, spots, window)
     console.record(*readings)
     cache = ConditionCache()
     bands = bands_from_log(book, cache=cache)
