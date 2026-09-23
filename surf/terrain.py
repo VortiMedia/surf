@@ -74,25 +74,34 @@ def _elevations(grid: BathymetryGrid) -> list[list[float | None]]:
 
 def _relief(values: list[list[float | None]], row: int, col: int, step: int = 1) -> float | None:
     center = values[row][col]
+    if center is None or center >= 0.0:
+        return None
     neighbors: list[float] = []
     for dr, dc in ((-step, 0), (step, 0), (0, -step), (0, step)):
         r, c = row + dr, col + dc
-        if 0 <= r < len(values) and 0 <= c < len(values[0]) and values[r][c] is not None:
+        if (
+            0 <= r < len(values)
+            and 0 <= c < len(values[0])
+            and values[r][c] is not None
+            and values[r][c] < 0.0  # type: ignore[operator]
+        ):
             neighbors.append(values[r][c])  # type: ignore[arg-type]
-    if center is None or len(neighbors) < 3:
+    if len(neighbors) < 3:
         return None
     return center - sum(neighbors) / len(neighbors)
 
 
 def _smooth(values: list[list[float | None]]) -> list[list[float | None]]:
-    out = [row[:] for row in values]
+    out: list[list[float | None]] = [[None for _ in row] for row in values]
     for row in range(len(values)):
         for col in range(len(values[0])):
+            if values[row][col] is None or values[row][col] >= 0.0:  # type: ignore[operator]
+                continue
             nearby = [
                 values[r][c]
                 for r in range(max(0, row - 1), min(len(values), row + 2))
                 for c in range(max(0, col - 1), min(len(values[0]), col + 2))
-                if values[r][c] is not None
+                if values[r][c] is not None and values[r][c] < 0.0  # type: ignore[operator]
             ]
             if nearby:
                 out[row][col] = sum(nearby) / len(nearby)

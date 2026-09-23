@@ -55,6 +55,26 @@ def test_coarse_grid_reports_no_gradient_without_interpolation() -> None:
     assert "no gradient" in result.note
 
 
+def test_land_cliff_is_not_reported_as_underwater_terrain() -> None:
+    cells = []
+    for row in range(7):
+        for col in range(7):
+            cells.append(Sample(
+                distance_m=row * 50.0,
+                lat=41.0 + row / 10000,
+                lon=-71.0 + col / 10000,
+                elevation_m=10.0 if col < 3 else -10.0,
+                resolution_m=3.0,
+            ))
+    land_edge = BathymetryGrid(
+        tuple(cells), 7, 7, 3.0, "unknown datum (fixture)"
+    )
+
+    result = scan_grid(spot(), land_edge)
+
+    assert result.candidates == ()
+
+
 def test_cli_reports_candidates_as_terrain_objects_and_caches_them(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("SURF_DATA", str(tmp_path))
 
