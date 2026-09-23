@@ -960,7 +960,7 @@ def cmd_geometry(args: argparse.Namespace, console: Console) -> int:
     wanted = [s for s in book if not args.spot or s.id == args.spot or s.name == args.spot]
     if not wanted:
         console.say(f"no spot matches {args.spot!r}")
-        return 2
+        return EXIT_USAGE
 
     source = console.bathymetry()
     updated: list[Spot] = []
@@ -986,10 +986,10 @@ def cmd_geometry(args: argparse.Namespace, console: Console) -> int:
     console.say(f"{changes}/{len(wanted)} spots answered by the sea floor")
     if not args.write:
         console.say("(nothing written; --write stores these in the spot database)")
-        return 0
+        return EXIT_OK
     save_spots(updated)
     console.say(f"wrote {changes} derived slopes to the spot database")
-    return 0
+    return EXIT_OK
 
 
 def cmd_session(args: argparse.Namespace, console: Console) -> int:
