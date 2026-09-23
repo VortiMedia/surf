@@ -207,6 +207,31 @@ def bbox_locations(zone: str, bbox: tuple[float, float, float, float], step_deg:
     return tuple(locations)
 
 
+def scan_zone(
+    locations: tuple[TerrainLocation, ...], source: TerrainSource, *, now: datetime,
+) -> tuple[str, datetime, tuple[TerrainScan, ...]]:
+    """Scan one sea-floor grid per location: `(status, fetched_at, scans)`.
+
+    A location the source could not answer keeps a scan row with no candidates
+    and the source's own status, so a gap is reported rather than skipped.
+    """
+    scans: list[TerrainScan] = []
+    status = "ok"
+    fetched_at = now
+    for location in locations:
+        reading = source.grid(location, radius_m=300.0, spacing_m=50.0, rows=7, cols=7)
+        fetched_at = max(fetched_at, reading.fetched_at)
+        if reading.value is None:
+            status = "failed" if reading.status in ("failed", "skipped") else "degraded"
+            scans.append(TerrainScan(location.id, reading.source, reading.status, reading.fetched_at, None, "unknown", note=reading.note, dropped=reading.dropped))
+            continue
+        if reading.status != "ok":
+            status = "degraded"
+        scan = scan_grid(location, reading.value)
+        scans.append(TerrainScan(location.id, reading.source, reading.status if reading.status != "ok" else scan.status, reading.fetched_at, scan.resolution_m, scan.vertical_datum, scan.candidates, scan.note, reading.dropped))
+    return status, fetched_at, tuple(scans)
+
+
 def terrain_cache_path(zone: str, bbox: tuple[float, float, float, float] | None = None, root: Path | None = None) -> Path:
     safe = re.sub(r"[^a-z0-9_-]+", "-", zone.casefold()).strip("-") or "zone"
     suffix = ""

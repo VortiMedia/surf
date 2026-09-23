@@ -77,7 +77,7 @@ from .terrain import (
     bbox_locations,
     load_terrain_cache,
     save_terrain_cache,
-    scan_grid,
+    scan_zone,
     terrain_cache_path,
 )
 from .waves import Forecast, TidePoint, WaveField, m_to_ft, mps_to_kt
@@ -798,21 +798,7 @@ def cmd_terrain(args: argparse.Namespace, console: Console) -> int:
         _render_terrain(zone, source_name, status, fetched_at, scans, console)
         return EXIT_OK
     source = console.terrain_source or NceiBathymetry(Http())
-    scans: list[TerrainScan] = []
-    status = "ok"
-    fetched_at = console.clock()
-    for location in locations:
-        reading = source.grid(location, radius_m=300.0, spacing_m=50.0, rows=7, cols=7)
-        fetched_at = max(fetched_at, reading.fetched_at)
-        if reading.value is None:
-            status = "failed" if reading.status in ("failed", "skipped") else "degraded"
-            scans.append(TerrainScan(location.id, reading.source, reading.status, reading.fetched_at, None, "unknown", note=reading.note, dropped=reading.dropped))
-            continue
-        if reading.status != "ok":
-            status = "degraded"
-        scan = scan_grid(location, reading.value)
-        scans.append(TerrainScan(location.id, reading.source, reading.status if reading.status != "ok" else scan.status, reading.fetched_at, scan.resolution_m, scan.vertical_datum, scan.candidates, scan.note, reading.dropped))
-    scans_tuple = tuple(scans)
+    status, fetched_at, scans_tuple = scan_zone(locations, source, now=console.clock())
     save_terrain_cache(path, args.zone, scans_tuple, source.name, status, fetched_at)
     console.record(Reading(scans_tuple, source.name, status, fetched_at, dropped=tuple(item for scan in scans_tuple for item in scan.dropped)))
     _render_terrain(args.zone, source.name, status, fetched_at, scans_tuple, console)
