@@ -43,6 +43,8 @@ UNKNOWN_SPOT = "unknown"
 
 # `????-03-03` — month and day survive; the year is genuinely not known.
 _PARTIAL_DATE = re.compile(r"^\?{4}-(\d{2})-(\d{2})$")
+# What `surf session add` will write: the partial form may carry a trailing `?`.
+_PARTIAL_DATE_ENTRY = re.compile(r"^\?{4}-\d{2}-\d{2}\??$")
 _FULL_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 _CLOCK = re.compile(r"^(\d{1,2}):(\d{2})$")
 
@@ -383,6 +385,72 @@ def parse_rating(raw: str) -> int | None:
     if not 1 <= rating <= 5:
         raise SessionFileError(f"rating {rating} outside 1-5")
     return rating
+
+
+def check_date(raw: str) -> str:
+    """Accept exactly what the loader accepts: `2025-09-30`, `2025-09-30?` and
+    `????-03-03`. Rejected here rather than written, because `parse_date` answers
+    "unknown" for a typo and for a genuine gap alike.
+    """
+    text = raw.strip()
+    if _PARTIAL_DATE_ENTRY.match(text):
+        return text
+    on, _ = parse_date(text)
+    if on is None:
+        raise SessionFileError(
+            f"date {raw!r} is neither YYYY-MM-DD (a trailing ? is fine) nor ????-MM-DD"
+        )
+    return text
+
+
+def append_session(
+    path: Path, *, date: str, spot: str, time: str, rating: str, notes: str, regime: str,
+) -> str:
+    """Validate one raw row and append it, returning the row as written.
+
+    A raw append, not a load-and-save: rewriting the file through the parser
+    would drop its comment header. Raises `SessionFileError` and writes nothing
+    when a field would not load back.
+    """
+    on = check_date(date)
+    parse_time(time)
+    score = parse_rating(rating)
+
+    regime = regime.strip()
+    if "\t" in "".join((date, spot, time, rating, notes, regime)):
+        raise SessionFileError("a field contains a tab, which would split the row")
+
+    values = (on, spot.strip(), time.strip(), "" if score is None else str(score), notes.strip())
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
+        prefix = "" if text.endswith("\n") or not text else "\n"
+        header = next((line.split("\t") for line in text.splitlines()
+                       if line.strip() and not line.lstrip().startswith("#")), [])
+        legacy = header == list(COLUMNS[:-1])
+        if regime and legacy:
+            # A supplied regime must not disappear into a legacy five-column
+            # header. Upgrade existing rows, retaining every comment line.
+            upgraded = []
+            header_seen = False
+            for line in text.splitlines():
+                if not line.strip() or line.lstrip().startswith("#"):
+                    upgraded.append(line)
+                elif not header_seen:
+                    header_seen = True
+                    upgraded.append("\t".join(COLUMNS))
+                else:
+                    upgraded.append(line)
+            path.write_text("\n".join(upgraded) + "\n", encoding="utf-8")
+            text = path.read_text(encoding="utf-8")
+            prefix = "" if text.endswith("\n") or not text else "\n"
+            legacy = False
+        row = "\t".join(values + ((regime,) if regime and not legacy else ()))
+    else:
+        prefix = "\t".join(COLUMNS) + "\n"
+        row = "\t".join(values + ((regime,) if regime else ()))
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(prefix + row + "\n")
+    return row
 
 
 def load_sessions(

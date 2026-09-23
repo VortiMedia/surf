@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
@@ -62,14 +61,11 @@ from .snapshots import (
     verify_snapshots,
 )
 from .sessions import (
-    COLUMNS as SESSION_COLUMNS,
     SessionFileError,
+    append_session,
     audit_sessions,
     default_sessions_path,
     load_sessions,
-    parse_date,
-    parse_rating,
-    parse_time,
 )
 from .sources import Archive, Http, Reading, Window
 from .spots import Derived, Spot, SpotBook, data_dir, save_spots
@@ -94,9 +90,6 @@ EXIT_OK = 0
 EXIT_FAILED = 1
 # argparse's own code for a malformed command line.
 EXIT_USAGE = 2
-
-# `????-03-03` is a legal log date: month and day known, year not.
-_PARTIAL_DATE = re.compile(r"^\?{4}-\d{2}-\d{2}\??$")
 
 
 def _now() -> datetime:
@@ -1003,22 +996,6 @@ def cmd_wave_state(args: argparse.Namespace, console: Console) -> int:
     return EXIT_OK
 
 
-def _check_date(raw: str) -> str:
-    """Accept exactly what the loader accepts: `2025-09-30`, `2025-09-30?` and
-    `????-03-03`. Rejected here rather than written, because `parse_date` answers
-    "unknown" for a typo and for a genuine gap alike.
-    """
-    text = raw.strip()
-    if _PARTIAL_DATE.match(text):
-        return text
-    on, _ = parse_date(text)
-    if on is None:
-        raise SessionFileError(
-            f"date {raw!r} is neither YYYY-MM-DD (a trailing ? is fine) nor ????-MM-DD"
-        )
-    return text
-
-
 def exposure_module():
     """Imported lazily: it needs shapely, which is not a package dependency."""
     return import_module("surf.exposure")
@@ -1085,55 +1062,18 @@ def cmd_session(args: argparse.Namespace, console: Console) -> int:
     """Append a raw row or run the mechanical audit."""
     if args.action == "audit":
         return cmd_session_audit(args, console)
-    # A raw append, not a load-and-save: rewriting the file through the parser
-    # would drop its comment header.
     if args.date is None or args.spot is None:
         console.warn("session add requires --date and --spot")
         return EXIT_USAGE
     path = Path(args.path) if args.path else default_sessions_path()
     try:
-        on = _check_date(args.date)
-        parse_time(args.time)
-        rating = parse_rating(args.rating)
+        row = append_session(
+            path, date=args.date, spot=args.spot, time=args.time,
+            rating=args.rating, notes=args.notes, regime=args.regime,
+        )
     except SessionFileError as exc:
         console.warn(f"not written: {exc}")
         return EXIT_FAILED
-
-    regime = args.regime.strip()
-    if "\t" in "".join((args.date, args.spot, args.time, args.rating, args.notes, regime)):
-        console.warn("not written: a field contains a tab, which would split the row")
-        return EXIT_FAILED
-
-    values = (on, args.spot.strip(), args.time.strip(), "" if rating is None else str(rating), args.notes.strip())
-    if path.exists():
-        text = path.read_text(encoding="utf-8")
-        prefix = "" if text.endswith("\n") or not text else "\n"
-        header = next((line.split("\t") for line in text.splitlines()
-                       if line.strip() and not line.lstrip().startswith("#")), [])
-        legacy = header == list(SESSION_COLUMNS[:-1])
-        if regime and legacy:
-            # A supplied regime must not disappear into a legacy five-column
-            # header. Upgrade existing rows, retaining every comment line.
-            upgraded = []
-            header_seen = False
-            for line in text.splitlines():
-                if not line.strip() or line.lstrip().startswith("#"):
-                    upgraded.append(line)
-                elif not header_seen:
-                    header_seen = True
-                    upgraded.append("\t".join(SESSION_COLUMNS))
-                else:
-                    upgraded.append(line)
-            path.write_text("\n".join(upgraded) + "\n", encoding="utf-8")
-            text = path.read_text(encoding="utf-8")
-            prefix = "" if text.endswith("\n") or not text else "\n"
-            legacy = False
-        row = "\t".join(values + ((regime,) if regime and not legacy else ()))
-    else:
-        prefix = "\t".join(SESSION_COLUMNS) + "\n"
-        row = "\t".join(values + ((regime,) if regime else ()))
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(prefix + row + "\n")
 
     console.say(f"appended to {path}")
     console.say(f"  {row}")
