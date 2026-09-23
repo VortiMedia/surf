@@ -50,6 +50,11 @@ class Window:
     start: datetime
     hours: int
 
+    @classmethod
+    def from_hour(cls, when: datetime, hours: int) -> Window:
+        """`hours` long, starting on the whole hour that contains `when`."""
+        return cls(start=when.replace(minute=0, second=0, microsecond=0), hours=hours)
+
 
 class ForecastSource(Protocol):
     name: str

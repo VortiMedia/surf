@@ -345,9 +345,7 @@ def run_watch(
         if spot is None:
             alerts.append(Alert(setup.name, spot_name, None, False, reason="spot does not resolve"))
             continue
-        forecast = service.outlook(
-            spot, Window(now.replace(minute=0, second=0, microsecond=0), hours)
-        )
+        forecast = service.outlook(spot, Window.from_hour(now, hours))
         readings.extend(forecast.readings)
         alerts.append(evaluate_forecast(setup, forecast, now=now))
         if snapshot_store is None or not model_run:

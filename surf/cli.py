@@ -391,7 +391,7 @@ def cmd_call(args: argparse.Namespace, console: Console) -> int:
         return EXIT_FAILED
 
     now = console.clock()
-    window = Window(start=now.replace(minute=0, second=0, microsecond=0), hours=args.days * 24)
+    window = Window.from_hour(now, args.days * 24)
     sharp = min(args.days, SHARP_DAYS)
     heads_up = max(args.days, sharp)
 
@@ -482,7 +482,7 @@ def cmd_spot(args: argparse.Namespace, console: Console) -> int:
     console.say(f"  band floor    {band.render() if band else 'none for this setup type'}")
 
     now = console.clock()
-    window = Window(start=now.replace(minute=0, second=0, microsecond=0), hours=args.days * 24)
+    window = Window.from_hour(now, args.days * 24)
     forecast = console.service().outlook(spot, window)
     console.record(*forecast.readings)
 
